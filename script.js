@@ -1,58 +1,29 @@
-// adblock_v2.js
-
-function removeAds() {
-    const adSelectors = [
-        '[id*="ad"], [class*="ad"]',
-        'div[id*="div-gpt-ad"]',
-        'div[id*="google_ads_iframe"]',
-        '#AdContent',
-        '.adsbygoogle',
-        'ins.adsbygoogle',
-        '#mainContainer'
-    ];
-
-    function hideElements(elements) {
-        for (const element of elements) {
-            element.style.display = 'none';
-            element.style.visibility = 'hidden';
-            element.style.width = '0';
-            element.style.height = '0';
-            element.style.opacity = '0';
-            element.style.pointerEvents = 'none';
-        }
+    // script.js
+    
+    // Function to hide header and footer elements
+    function hideHeaderAndFooter() {
+        const style = document.createElement('style');
+        style.innerHTML = '#headerNav, footer { display: none !important; }';
+        document.head.appendChild(style);
     }
-
-    // Initial removal
-    hideElements(document.querySelectorAll(adSelectors.join(',')));
-
-    // Use MutationObserver to detect and remove ads that are loaded dynamically
-    const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    for (const selector of adSelectors) {
-                        if (node.matches(selector)) {
-                            hideElements([node]);
-                        }
-                        hideElements(node.querySelectorAll(selector));
-                    }
-                }
-            }
-        }
-    });
-
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-}
-
-// Execute functions when the document is ready
-document.addEventListener('DOMContentLoaded', function() {
-    removeAds();
-});
-
-// Also execute on document end
-window.addEventListener('load', function() {
-    removeAds();
+    
+   // Function to detect text copy and send a message to the native app
+   function setupTextCopyDetection() {
+       document.addEventListener('copy', function(e) {
+           // Ensure window.webkit.messageHandlers.textCopyHandler exists before posting
+           if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.textCopyHandler) {
+               window.webkit.messageHandlers.textCopyHandler.postMessage('textCopied');
+           }
+       });
+   }
+   
+   // Execute functions when the document is ready
+   document.addEventListener('DOMContentLoaded', function() {
+       hideHeaderAndFooter();
+       setupTextCopyDetection();
+   });
+   
+   // Also execute on document end in case DOMContentLoaded fires too early for some content
+   window.addEventListener('load', function() {
+   hideHeaderAndFooter();
 });
