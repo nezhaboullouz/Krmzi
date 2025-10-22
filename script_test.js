@@ -1,16 +1,22 @@
-// adblock_v3.js
+// adblock_v4.js
 
 console.log("Adblocker script started");
 
 function removeAds() {
     const adSelectors = [
-        '[id*="ad"], [class*="ad"]',
         'div[id*="div-gpt-ad"]',
         'div[id*="google_ads_iframe"]',
         '#AdContent',
         '.adsbygoogle',
         'ins.adsbygoogle',
-        '#mainContainer'
+        '#mainContainer',
+        '[class*="ad-banner"]',
+        '[class*="ad-container"]',
+        '[class*="ad-wrapper"]',
+        '[class*="ad-slot"]',
+        '[class*="google-ad"]',
+        '[id*="doubleclick"]',
+        '[id*="google_ads"]'
     ];
 
     function hideElements(elements) {
@@ -28,7 +34,7 @@ function removeAds() {
     hideElements(document.querySelectorAll(adSelectors.join(',')));
 
     // Use MutationObserver to detect and remove ads that are loaded dynamically
-    const observer = new MutationObserver((mutations) => {
+    const observer = new MutationoObserver((mutations) => {
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
                 if (node.nodeType === Node.ELEMENT_NODE) {
