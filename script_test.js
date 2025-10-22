@@ -1,91 +1,48 @@
-// adblock_v6.js
+// script.js
 
-console.log("Adblocker script started");
+// Function to hide header and footer elements
+function hideHeaderAndFooter() {
+    const style = document.createElement('style');
+    style.innerHTML = '#headerNav, footer { display: none !important; }';
+    document.head.appendChild(style);
+}
 
-function removeAds() {
-    const adSelectors = [
-        'div[id*="div-gpt-ad"]',
-        'div[id*="google_ads_iframe"]',
-        '#AdContent',
-        '.adsbygoogle',
-        'ins.adsbygoogle',
-        '#mainContainer',
-        '[class*="ad-banner"]',
-        '[class*="ad-container"]',
-        '[class*="ad-wrapper"]',
-        '[class*="ad-slot"]',
-        '[class*="google-ad"]',
-        '[id*="doubleclick"]',
-        '[id*="google_ads"]',
-        '[id*="ad_unit"]',
-        '[class*="ad_unit"]',
-        '[id*="ad-container"]',
-        '[class*="ad-container"]',
-        '[id*="ad-wrapper"]',
-        '[class*="ad-wrapper"]',
-        '[id*="ad-slot"]',
-        '[class*="ad-slot"]',
-        '[id*="ad-banner"]',
-        '[class*="ad-banner"]',
-        '[id*="google-ad"]',
-        '[class*="google-ad"]',
-        '[id*="doubleclick"]',
-        '[class*="doubleclick"]',
-        'a[href*="/adclick."]',
-        'a[href*="/adclick/"]',
-        'a[href*="/ads/"]',
-        'a[href*="/ads."]',
-        'a[href*="/advert/"]',
-        'a[href*="/advert."]',
-        'a[href*="/banner/"]',
-        'a[href*="/banner."]',
-        'a[href*="/sponsor/"]',
-        'a[href*="/sponsor."]'
-    ];
+// Function to detect text copy and send a message to the native app
+function setupTextCopyDetection() {
+    document.addEventListener('copy', function(e) {
+        // Ensure window.webkit.messageHandlers.textCopyHandler exists before posting
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.textCopyHandler) {
+            window.webkit.messageHandlers.textCopyHandler.postMessage('textCopied');
+        }
+    });
+}
 
-    function hideElements(elements) {
-        for (const element of elements) {
-            console.log("Hiding element:", element);
-            element.style.display = 'none';
-            element.style.visibility = 'hidden';
-            element.style.width = '0';
-            element.style.height = '0';
-            element.style.opacity = '0';
-            element.style.pointerEvents = 'none';
+// Function to handle specific website modifications
+function handleFashnyNet() {
+    if (window.location.href.includes('https://fashny.net/')) {
+        // Hide everything in the body
+        document.body.style.display = 'none';
+
+        // Show only the skipContent div
+        const skipContent = document.getElementById('skipContent');
+        if (skipContent) {
+            skipContent.style.display = 'block';
+            skipContent.style.visibility = 'visible'; // Ensure visibility
+            document.body.appendChild(skipContent); // Re-append to body to ensure it's visible
+            document.body.style.display = 'block'; // Show body again, but only with skipContent
         }
     }
-
-    // Initial removal
-    hideElements(document.querySelectorAll(adSelectors.join(',')));
-
-    // Use MutationObserver to detect and remove ads that are loaded dynamically
-    const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType === Node.ELEMENT_NODE) {
-                    for (const selector of adSelectors) {
-                        if (node.matches(selector)) {
-                            hideElements([node]);
-                        }
-                        hideElements(node.querySelectorAll(selector));
-                    }
-                }
-            }
-        }
-    });
-
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
 }
 
 // Execute functions when the document is ready
 document.addEventListener('DOMContentLoaded', function() {
-    removeAds();
+    hideHeaderAndFooter();
+    setupTextCopyDetection();
+    handleFashnyNet(); // Call the new function
 });
 
-// Also execute on document end
+// Also execute on document end in case DOMContentLoaded fires too early for some content
 window.addEventListener('load', function() {
-    removeAds();
+    hideHeaderAndFooter();
+    handleFashnyNet(); // Call the new function
 });
