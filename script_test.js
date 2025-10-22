@@ -1,4 +1,4 @@
-// adblock_v4.js
+// adblock_v5.js
 
 console.log("Adblocker script started");
 
@@ -16,7 +16,31 @@ function removeAds() {
         '[class*="ad-slot"]',
         '[class*="google-ad"]',
         '[id*="doubleclick"]',
-        '[id*="google_ads"]'
+        '[id*="google_ads"]',
+        '[id*="ad_unit"]',
+        '[class*="ad_unit"]',
+        '[id*="ad-container"]',
+        '[class*="ad-container"]',
+        '[id*="ad-wrapper"]',
+        '[class*="ad-wrapper"]',
+        '[id*="ad-slot"]',
+        '[class*="ad-slot"]',
+        '[id*="ad-banner"]',
+        '[class*="ad-banner"]',
+        '[id*="google-ad"]',
+        '[class*="google-ad"]',
+        '[id*="doubleclick"]',
+        '[class*="doubleclick"]',
+        'a[href*="/adclick."]',
+        'a[href*="/adclick/"]',
+        'a[href*="/ads/"]',
+        'a[href*="/ads."]',
+        'a[href*="/advert/"]',
+        'a[href*="/advert."]',
+        'a[href*="/banner/"]',
+        'a[href*="/banner."]',
+        'a[href*="/sponsor/"]',
+        'a[href*="/sponsor."]'
     ];
 
     function hideElements(elements) {
@@ -34,7 +58,7 @@ function removeAds() {
     hideElements(document.querySelectorAll(adSelectors.join(',')));
 
     // Use MutationObserver to detect and remove ads that are loaded dynamically
-    const observer = new MutationoObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
                 if (node.nodeType === Node.ELEMENT_NODE) {
