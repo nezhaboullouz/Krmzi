@@ -1,4 +1,4 @@
-// adblock_v5.js
+// adblock_v6.js
 
 console.log("Adblocker script started");
 
@@ -45,6 +45,7 @@ function removeAds() {
 
     function hideElements(elements) {
         for (const element of elements) {
+            console.log("Hiding element:", element);
             element.style.display = 'none';
             element.style.visibility = 'hidden';
             element.style.width = '0';
