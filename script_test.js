@@ -1,4 +1,6 @@
-// adblock_v2.js
+// adblock_v3.js
+
+console.log("Adblocker script started");
 
 function removeAds() {
     const adSelectors = [
