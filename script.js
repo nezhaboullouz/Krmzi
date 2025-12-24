@@ -165,18 +165,22 @@
 
             if (target && target.href) {
                 const url = new URL(target.href);
-                if (url.hostname.includes('fashny.net')) {
+                if (url.hostname.includes('fashny.net') || url.hostname.includes('globuilds.net')) {
                     e.preventDefault();
                     e.stopImmediatePropagation();
                     
                     const redirectedUrl = url.searchParams.get('url');
                     if (redirectedUrl) {
-                        try {
-                            const decodedUrl = atob(redirectedUrl);
-                            window.location.href = decodedUrl;
-                        } catch (error) {
-                            console.error('Failed to decode or navigate:', error);
-                            window.location.href = target.href; // fallback
+                        if (url.hostname.includes('fashny.net')) {
+                            try {
+                                const decodedUrl = atob(redirectedUrl);
+                                window.location.href = decodedUrl;
+                            } catch (error) {
+                                console.error('Failed to decode or navigate:', error);
+                                window.location.href = target.href; // fallback
+                            }
+                        } else {
+                            window.location.href = redirectedUrl;
                         }
                     }
                 }
