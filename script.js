@@ -154,12 +154,44 @@
     }
 
     // ==========================================
+    // MODULE 5: REDIRECTION SKIPPER
+    // ==========================================
+    function skipRedirects() {
+        document.body.addEventListener('click', function(e) {
+            let target = e.target;
+            while (target && target.tagName !== 'A') {
+                target = target.parentElement;
+            }
+
+            if (target && target.href) {
+                const url = new URL(target.href);
+                if (url.hostname.includes('fashny.net')) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    
+                    const redirectedUrl = url.searchParams.get('url');
+                    if (redirectedUrl) {
+                        try {
+                            const decodedUrl = atob(redirectedUrl);
+                            window.location.href = decodedUrl;
+                        } catch (error) {
+                            console.error('Failed to decode or navigate:', error);
+                            window.location.href = target.href; // fallback
+                        }
+                    }
+                }
+            }
+        }, true); // Use capture phase to catch the event early
+    }
+
+    // ==========================================
     // MAIN EXECUTION
     // ==========================================
     function init() {
         try {
             injectSuperStyles();
             cleanJunk();
+            skipRedirects();
             
             // Enhance existing videos
             document.querySelectorAll('video').forEach(enhanceVideo);
