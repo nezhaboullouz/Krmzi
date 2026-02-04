@@ -12,8 +12,8 @@
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
         'ins.adsbygoogle', '[id*="google_ads"]',
-        // Specific Ad Iframes only
-        'iframe[src*="ads"]', 'iframe[src*="tracker"]'
+        // Specific Ad Iframes only - REMOVED CSS BLOCKING FOR IFRAMES TO BE SAFE
+        // 'iframe[src*="ads"]', 'iframe[src*="tracker"]'
     ].join(', ');
 
     // ==========================================
@@ -44,10 +44,12 @@
             }
             
             /* Ensure Player Modal is Visible */
-            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal {
+            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
+            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
                 display: block !important; 
                 visibility: visible !important;
                 z-index: 99999 !important; /* Force it on top */
+                opacity: 1 !important;
             }
         `;
         document.head.appendChild(style);
@@ -58,8 +60,8 @@
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
-            // Remove ad iframes
-            document.querySelectorAll('iframe[src*="ads"], iframe[src*="pop"]').forEach(el => el.remove());
+            // Remove ad iframes (Only explicit ads, removed "pop" to be safe)
+            document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
             document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
 
             // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
