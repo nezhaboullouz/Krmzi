@@ -8,6 +8,10 @@
         // Headers & Footers
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
         '.SectionsRelated', '.SearchForm',
+        // NEW JUNK REMOVAL
+        '.con_Ad', '.code-block', '#dream7-01',
+        '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
+        '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
