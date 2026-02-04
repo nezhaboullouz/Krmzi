@@ -6,8 +6,8 @@
     // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
     const BLOCKED_SELECTORS = [
         // Headers & Footers
-        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav', '.avp-body',
-        '.SectionsRelated', '.SearchForm', '.module_single_sda',
+        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
+        '.SectionsRelated', '.SearchForm',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
