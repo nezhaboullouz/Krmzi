@@ -1,4 +1,4 @@
-(function() {
+(function () {
     // 1. SAFETY LOCK
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
@@ -6,11 +6,11 @@
     // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
     const BLOCKED_SELECTORS = [
         // Headers & Footers
-        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav', '.avp-body', 
+        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav', '.avp-body',
         '.SectionsRelated', '.SearchForm', '.module_single_sda',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
-        '.ad', '.ads', '.advertisement', '.banner', '.social-share', 
+        '.ad', '.ads', '.advertisement', '.banner', '.social-share',
         'ins.adsbygoogle', '[id*="google_ads"]',
         // Specific Ad Iframes only
         'iframe[src*="ads"]', 'iframe[src*="tracker"]'
@@ -61,7 +61,7 @@
             // Remove ad iframes
             document.querySelectorAll('iframe[src*="ads"], iframe[src*="pop"]').forEach(el => el.remove());
             document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
-            
+
             // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
             /*
             const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
@@ -90,7 +90,7 @@
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
                 e.stopImmediatePropagation();
-                video.play().catch(() => {});
+                video.play().catch(() => { });
             }
             video.pausedByClick = false;
         });
@@ -109,7 +109,7 @@
             mutations.forEach(mutation => {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
-                    
+
                     if (node.tagName === 'VIDEO') enhanceVideo(node);
                     else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
 
@@ -129,10 +129,11 @@
         try {
             injectSuperStyles();
             cleanJunk();
-            
+            // removed skipRedirects() if it causes issues, assuming it's okay for now
+
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
-            
+
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
