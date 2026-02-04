@@ -125,13 +125,27 @@
     }
 
     // ==========================================
+    // MODULE 5: AUTO-REDIRECT TO WATCH
+    // ==========================================
+    function autoRedirectToWatch() {
+        // If we are NOT in watch mode, and there is a watch button
+        if (!window.location.search.includes('do=watch')) {
+            const watchBtn = document.getElementById('btnWatch');
+            if (watchBtn && watchBtn.href) {
+                console.log("Auto-redirecting to Watch Mode...");
+                window.location.href = watchBtn.href;
+            }
+        }
+    }
+
+    // ==========================================
     // INIT
     // ==========================================
     function init() {
         try {
             injectSuperStyles();
             cleanJunk();
-            // removed skipRedirects() if it causes issues, assuming it's okay for now
+            autoRedirectToWatch(); // Added Auto-Redirect
 
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
