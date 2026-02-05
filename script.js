@@ -1,38 +1,37 @@
 (function () {
-    /* 
-       ================================================================
-       🚀 3CKTV ULTIMATE OPTIMIZER (GEOMETRIC SHIELD EDITION)
-       ================================================================
-       1. Safe Mode: Never hides content (prevent white screen).
-       2. Geometric Cleaner: Automatically detects and hides ANY element covering the player.
-       3. Auto Redirect: Goes to watch mode if available.
-    */
-
+    // 1. SAFETY LOCK
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // --- CONFIGURATION ---
-    const SAFE_AD_SELECTORS = [
-        '.con_Ad', '.code-block', 
-        '#dream7-01', '#dream7-03', 
-        '.article-ads', '.footerBox',
+    // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
+    const BLOCKED_SELECTORS = [
+        // Headers & Footers
+        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
+        '.SectionsRelated', '.SearchForm',
+        // NEW JUNK REMOVAL
+        '.con_Ad', '.code-block', '#dream7-01',
+        '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
+        '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
+        // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]'
+        'ins.adsbygoogle', '[id*="google_ads"]',
+        // Specific Ad Iframes only - REMOVED CSS BLOCKING FOR IFRAMES TO BE SAFE
+        // 'iframe[src*="ads"]', 'iframe[src*="tracker"]'
     ].join(', ');
 
     // ==========================================
-    // MODULE 1: FLUID CSS (SAFE)
+    // MODULE 1: FAST CSS HIDING
     // ==========================================
-    function injectSafeStyles() {
-        const styleId = 'optimized-safe-style';
+    function injectSuperStyles() {
+        const styleId = 'optimized-blocker-style';
         if (document.getElementById(styleId)) return;
 
         const style = document.createElement('style');
         style.id = styleId;
         style.innerHTML = `
-            /* Hide ONLY known ads */
-            ${SAFE_AD_SELECTORS} {
+            /* Hide known junk */
+            ${BLOCKED_SELECTORS} {
                 display: none !important;
                 visibility: hidden !important;
                 height: 0 !important;
@@ -42,117 +41,57 @@
                 z-index: -9999 !important;
             }
             
-            /* Fix Body Scroll but keep content */
+            /* Body Fixes */
             body, html {
                 overflow-x: hidden !important;
                 max-width: 100vw !important;
             }
             
-            /* FORCE PLAYER VISIBILITY */
-            .postEmbed, .servContent, .singleInfo, #player-modal, iframe, .active-server {
-                z-index: 2147483600 !important; /* High but allow Geometric Shield */
-                position: relative !important;
-                opacity: 1 !important;
+            /* Ensure Player Modal is Visible */
+            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
+            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
+                display: block !important; 
                 visibility: visible !important;
-                display: block !important;
-            }
-
-            /* FORCE CONTENT VISIBILITY */
-            .article-wrap, .page-cntn, .category-cntn, .one-cat, .cat-title {
-                display: block !important;
-                visibility: visible !important;
+                z-index: 99999 !important; /* Force it on top */
                 opacity: 1 !important;
-                height: auto !important;
-                width: auto !important;
-            }
-            
-            /* HIDE AD IFRAMES */
-            iframe[src*="google"], iframe[src*="doubleclick"] {
-                display: none !important;
             }
         `;
         document.head.appendChild(style);
     }
 
     // ==========================================
-    // MODULE 2: GEOMETRIC CLEANER (THE FIX)
+    // MODULE 2: JUNK REMOVAL
     // ==========================================
-    function geometricClean() {
-        // 1. Find the active player (Try multiple selectors)
-        const player = document.querySelector('.postEmbed iframe') || 
-                       document.querySelector('.postEmbed') ||
-                       document.querySelector('iframe[src*="vidsp"]');
-        
-        if (!player) return;
+    function cleanJunk() {
+        requestAnimationFrame(() => {
+            // Remove ad iframes (Only explicit ads, removed "pop" to be safe)
+            document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
+            document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
 
-        const playerRect = player.getBoundingClientRect();
-        
-        // If player is hidden or tiny, don't run
-        if (playerRect.width < 10 || playerRect.height < 10) return;
-
-        // 2. Scan all elements in the body
-        const allElements = document.body.querySelectorAll('*');
-
-        allElements.forEach(el => {
-            // Safety: Skip the player itself and its parents
-            if (el === player || player.contains(el) || el.contains(player)) return;
-            // Safety: Skip layout containers
-            if (el.tagName === 'BODY' || el.tagName === 'HTML' || el.className.includes('container') || el.className.includes('row') || el.className.includes('col-')) return;
-            // Safety: Skip Safe Content
-            if (el.className.includes('article') || el.className.includes('cat-title') || el.className.includes('page-cntn')) return;
-
-            const elRect = el.getBoundingClientRect();
-
-            // 3. CHECK OVERLAP
-            // Is this element physically covering the player area?
-            // (Math logic: If rects intersect)
-            const isOverlapping = !(elRect.right < playerRect.left || 
-                                  elRect.left > playerRect.right || 
-                                  elRect.bottom < playerRect.top || 
-                                  elRect.top > playerRect.bottom);
-
-            if (isOverlapping) {
-                // If it physically touches the player...
-                const style = window.getComputedStyle(el);
-                const zIndex = parseInt(style.zIndex) || 0;
-                
-                // If it's a known ad class OR has high z-index OR is fixed/absolute
-                const isAdSignature = (el.id && el.id.includes('dream')) || (el.className && el.className.includes('ads')) || el.tagName === 'IFRAME';
-                const isFloating = style.position === 'fixed' || style.position === 'absolute';
-
-                // HIDE IT if it's suspicious
-                if (isAdSignature || (isFloating && zIndex > 5)) {
-                    // console.log("Hiding Overlapping Element:", el);
-                    el.style.display = 'none';
-                    el.style.visibility = 'hidden';
+            // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
+            /*
+            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
+            highZ.forEach(el => {
+                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
+                    if (!el.querySelector('video') && !el.className.includes('player')) {
+                        // el.style.display = 'none'; // Dangerous
+                    }
                 }
-            }
+            });
+            */
         });
     }
 
     // ==========================================
-    // MODULE 3: STANDARD CLEANING
-    // ==========================================
-    function cleanKnownJunk() {
-        const junk = document.querySelectorAll(SAFE_AD_SELECTORS);
-        junk.forEach(el => el.remove());
-        
-        // Kill ad iframes specifically
-        document.querySelectorAll('iframe').forEach(ifr => {
-            if (ifr.src.includes('google') || ifr.src.includes('doubleclick') || ifr.src.includes('ads')) {
-                ifr.remove();
-            }
-        });
-    }
-
-    // ==========================================
-    // MODULE 4: VIDEO ENHANCER
+    // MODULE 3: VIDEO ENHANCER
     // ==========================================
     function enhanceVideo(video) {
         if (video.dataset.enhanced) return;
         video.dataset.enhanced = "true";
+
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
+        // video.setAttribute('controls', 'true'); // Commented out: Might break custom player UI
 
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
@@ -169,50 +108,58 @@
     }
 
     // ==========================================
-    // INIT
+    // MODULE 4: MONITORING
     // ==========================================
     function startMonitoring() {
-        // Run cleaning loop frequently
-        setInterval(() => {
-            cleanKnownJunk();
-            geometricClean(); // Continuously check for overlap
-        }, 1500);
-
-        // Observer for new videos
         const observer = new MutationObserver((mutations) => {
             mutations.forEach(mutation => {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
+
                     if (node.tagName === 'VIDEO') enhanceVideo(node);
                     else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
+
+                    if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
+                        node.remove();
+                    }
                 });
             });
         });
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
+    // ==========================================
+    // MODULE 5: AUTO-REDIRECT TO WATCH
+    // ==========================================
     function autoRedirectToWatch() {
+        // If we are NOT in watch mode, and there is a watch button
         if (!window.location.search.includes('do=watch')) {
             const watchBtn = document.getElementById('btnWatch');
             if (watchBtn && watchBtn.href) {
+                console.log("Auto-redirecting to Watch Mode...");
                 window.location.href = watchBtn.href;
             }
         }
     }
 
+    // ==========================================
+    // INIT
+    // ==========================================
     function init() {
         try {
-            injectSafeStyles();
-            cleanKnownJunk();
-            autoRedirectToWatch();
+            injectSuperStyles();
+            cleanJunk();
+            autoRedirectToWatch(); // Added Auto-Redirect
+
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
 
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
+            console.log("Safe Optimization Loaded");
         } catch (e) {
-            console.error(e);
+            console.error("Error:", e);
         }
     }
 
