@@ -1,24 +1,25 @@
 (function () {
-    // 1. SAFETY LOCK: Prevent the script from running twice and crashing the browser
+    // 1. SAFETY LOCK
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // CONFIGURATION: Add any class or ID you want to remove here
+    // CONFIGURATION
     const BLOCKED_SELECTORS = [
         // Headers & Footers
-        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav', '.avp-body',
-        '.SectionsRelated', '.SearchForm', '.module_single_sda',
+        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
+        '.SectionsRelated', '.SearchForm',
+        // JUNK REMOVAL
+        '.con_Ad', '.code-block', '#dream7-01',
+        '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
+        '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]',
-        // Popups & Overlays
-        '.popup', '.modal', '.cookie-notice', '#gdpr', '.overlay', '.lightbox',
-        'iframe[src*="ads"]', 'iframe[src*="tracker"]'
+        'ins.adsbygoogle', '[id*="google_ads"]'
     ].join(', ');
 
     // ==========================================
-    // MODULE 1: FAST CSS HIDING (GPU ACCELERATED)
+    // MODULE 1: FAST CSS HIDING
     // ==========================================
     function injectSuperStyles() {
         const styleId = 'optimized-blocker-style';
@@ -27,7 +28,7 @@
         const style = document.createElement('style');
         style.id = styleId;
         style.innerHTML = `
-            /* Hide known junk immediately */
+            /* Hide known junk */
             ${BLOCKED_SELECTORS} {
                 display: none !important;
                 visibility: hidden !important;
@@ -38,191 +39,145 @@
                 z-index: -9999 !important;
             }
             
-            /* Force Mobile Layout */
+            /* Hide Original Watch Button (To force Download button usage) */
+            #btnWatch, .single-watch-btn {
+                display: none !important;
+            }
+
+            /* Body Fixes */
             body, html {
                 overflow-x: hidden !important;
                 max-width: 100vw !important;
-                padding: 0 !important;
-                margin: 0 !important;
             }
             
-            /* Make video player responsive */
-            video {
-                max-width: 100% !important;
-                height: auto !important;
-                display: block !important;
+            /* Ensure Player Modal is Visible */
+            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
+            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
+                display: block !important; 
+                visibility: visible !important;
+                z-index: 99999 !important;
+                opacity: 1 !important;
             }
         `;
         document.head.appendChild(style);
     }
 
     // ==========================================
-    // MODULE 2: JUNK REMOVAL (CPU OPTIMIZED)
+    // MODULE 2: JUNK REMOVAL
     // ==========================================
     function cleanJunk() {
-        // We use requestAnimationFrame to prevent freezing the UI thread
         requestAnimationFrame(() => {
-            // Remove iframes (they consume memory even if hidden)
-            const iframes = document.querySelectorAll('iframe[src*="ads"], iframe[src*="pop"]');
-            iframes.forEach(el => el.remove());
-
-            // Remove specific scripts
-            const badScripts = document.querySelectorAll('script[src*="ads"]');
-            badScripts.forEach(el => el.remove());
-
-            // Handle stubborn z-index popups (Only check DIVs to save battery)
-            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
-            highZ.forEach(el => {
-                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
-                    // Double check it's not the video player
-                    if (!el.querySelector('video') && !el.className.includes('player')) {
-                        el.style.display = 'none';
-                    }
-                }
-            });
+            document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
+            document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
         });
     }
 
     // ==========================================
-    // MODULE 3: VIDEO PLAYER ENHANCER
+    // MODULE 3: VIDEO ENHANCER
     // ==========================================
     function enhanceVideo(video) {
-        if (video.dataset.enhanced) return; // Don't process twice
+        if (video.dataset.enhanced) return;
         video.dataset.enhanced = "true";
 
-        // Force Attributes
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
-        video.setAttribute('controls', 'true');
 
-        // Prevent Auto-Pause logic
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
-                console.log('Blocking auto-pause');
                 e.stopImmediatePropagation();
                 video.play().catch(() => { });
             }
-            video.pausedByClick = false; // Reset flag
+            video.pausedByClick = false;
         });
 
         video.addEventListener('click', () => {
             video.pausedByClick = true;
-            // Reset flag after 500ms
             setTimeout(() => { video.pausedByClick = false; }, 500);
         });
     }
 
-    // Override the browser's internal pause command
-    const originalPause = HTMLVideoElement.prototype.pause;
-    HTMLVideoElement.prototype.pause = function () {
-        // Only allow pause if the video ended or user clicked
-        if (this.ended || this.pausedByClick) {
-            originalPause.apply(this, arguments);
-        }
-    };
-
     // ==========================================
-    // MODULE 4: THE OBSERVER (WATCHES FOR CHANGES)
+    // MODULE 4: MONITORING
     // ==========================================
     function startMonitoring() {
         const observer = new MutationObserver((mutations) => {
-            let foundNewVideo = false;
-            let foundNewJunk = false;
-
             mutations.forEach(mutation => {
                 mutation.addedNodes.forEach(node => {
-                    if (node.nodeType !== 1) return; // Skip text nodes
+                    if (node.nodeType !== 1) return;
 
-                    // Check for video
-                    if (node.tagName === 'VIDEO') {
-                        enhanceVideo(node);
-                    } else if (node.querySelectorAll) {
-                        node.querySelectorAll('video').forEach(enhanceVideo);
+                    if (node.tagName === 'VIDEO') enhanceVideo(node);
+                    else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
+
+                    if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
+                        node.remove();
                     }
-
-                    // Check for junk (only simple check to save CPU)
-                    if (node.tagName === 'IFRAME' || node.matches && node.matches('.popup, .modal')) {
-                        foundNewJunk = true;
+                    
+                    // Re-apply button hijack if buttons are re-rendered
+                    if (node.querySelector && node.querySelector('#btnDown')) {
+                         forceDownloadToWatch();
                     }
                 });
             });
-
-            if (foundNewJunk) cleanJunk();
         });
-
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
     // ==========================================
-    // MODULE 5: REDIRECTION SKIPPER
+    // MODULE 5: FORCE DOWNLOAD-TO-WATCH (HIJACK)
     // ==========================================
-    function skipRedirects() {
-        document.body.addEventListener('click', function (e) {
-            let target = e.target;
-            while (target && target.tagName !== 'A') {
-                target = target.parentElement;
-            }
+    function forceDownloadToWatch() {
+        const watchBtn = document.getElementById('btnWatch') || document.querySelector('.single-watch-btn');
+        const downBtn = document.getElementById('btnDown') || document.querySelector('.single-download-btn');
 
-            if (target && target.href) {
-                const url = new URL(target.href);
-                if (url.hostname.includes('fashny.net')) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-
-                    const redirectedUrl = url.searchParams.get('url');
-                    if (redirectedUrl) {
-                        try {
-                            const decodedUrl = atob(redirectedUrl);
-                            window.location.href = decodedUrl;
-                        } catch (error) {
-                            console.error('Failed to decode or navigate:', error);
-                            window.location.href = target.href; // fallback
-                        }
-                    }
+        if (watchBtn && downBtn) {
+            // Logic: User sees Download -> Clicks Download -> Opens Watch Link
+            
+            // 1. Sanitize the Download Button
+            downBtn.removeAttribute('target'); // Prevent new tab if specific
+            
+            // 2. Hijack the click event
+            // Remove old listeners by cloning (optional, but robust)
+            const newDownBtn = downBtn.cloneNode(true);
+            downBtn.parentNode.replaceChild(newDownBtn, downBtn);
+            
+            newDownBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Redirect to the Watch URL
+                if (watchBtn.href) {
+                    console.log("Hijacked Download -> Opening Watch Link");
+                    window.location.href = watchBtn.href;
                 }
-            }
-        }, true); // Use capture phase to catch the event early
+            }, true);
+
+            // 3. Ensure Watch Button is hidden (CSS handles this, but JS reinforces)
+            watchBtn.style.display = 'none';
+        }
     }
 
     // ==========================================
-    // MAIN EXECUTION
+    // INIT
     // ==========================================
     function init() {
         try {
             injectSuperStyles();
             cleanJunk();
-            skipRedirects();
+            forceDownloadToWatch(); // Activate Hijack
 
-            // Enhance existing videos
             document.querySelectorAll('video').forEach(enhanceVideo);
-
-            // Start watching for new content
             startMonitoring();
 
-            // Background Play Enforcer
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) {
-                    document.querySelectorAll('video').forEach(v => {
-                        if (v.paused && !v.ended) v.play().catch(() => { });
-                    });
-                }
-            });
-
-            // Notify App (Swift/Android)
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log("Device Optimization Loaded Successfully");
+            console.log("Safe Optimization + Download Hijack Loaded");
         } catch (e) {
-            console.error("Optimization Error:", e);
+            console.error("Error:", e);
         }
     }
 
-    // Run immediately or wait for body
-    if (document.body) {
-        init();
-    } else {
-        document.addEventListener('DOMContentLoaded', init);
-    }
+    if (document.body) init();
+    else document.addEventListener('DOMContentLoaded', init);
 
 })();
