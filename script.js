@@ -3,21 +3,20 @@
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
+    // CONFIGURATION
     const BLOCKED_SELECTORS = [
-        // Headers & Footers
+        // Headers & Footers (Keep these if you want a "Cinema Mode", remove if you want to see the menu)
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
         '.SectionsRelated', '.SearchForm',
-        // NEW JUNK REMOVAL
+        
+        // ADS & JUNK ONLY (Removed content classes like .article-wrap, .page-cntn)
         '.con_Ad', '.code-block', '#dream7-01',
-        '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
-        '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
+        '.article-ads', '.footerBox',
+        
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]',
-        // Specific Ad Iframes only - REMOVED CSS BLOCKING FOR IFRAMES TO BE SAFE
-        // 'iframe[src*="ads"]', 'iframe[src*="tracker"]'
+        'ins.adsbygoogle', '[id*="google_ads"]'
     ].join(', ');
 
     // ==========================================
@@ -47,12 +46,13 @@
                 max-width: 100vw !important;
             }
             
-            /* Ensure Player Modal is Visible */
+            /* Ensure Player Modal and CONTENT is Visible */
             .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
-            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
+            .postEmbed, .sec-main, .servContent, .singleInfo, iframe,
+            .article-wrap, .page-cntn {  /* Added content wrappers here just in case */
                 display: block !important; 
                 visibility: visible !important;
-                z-index: 99999 !important; /* Force it on top */
+                z-index: 99999 !important;
                 opacity: 1 !important;
             }
         `;
@@ -64,21 +64,8 @@
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
-            // Remove ad iframes (Only explicit ads, removed "pop" to be safe)
             document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
             document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
-
-            // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
-            /*
-            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
-            highZ.forEach(el => {
-                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
-                    if (!el.querySelector('video') && !el.className.includes('player')) {
-                        // el.style.display = 'none'; // Dangerous
-                    }
-                }
-            });
-            */
         });
     }
 
@@ -91,7 +78,6 @@
 
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
-        // video.setAttribute('controls', 'true'); // Commented out: Might break custom player UI
 
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
@@ -132,7 +118,6 @@
     // MODULE 5: AUTO-REDIRECT TO WATCH
     // ==========================================
     function autoRedirectToWatch() {
-        // If we are NOT in watch mode, and there is a watch button
         if (!window.location.search.includes('do=watch')) {
             const watchBtn = document.getElementById('btnWatch');
             if (watchBtn && watchBtn.href) {
@@ -149,7 +134,7 @@
         try {
             injectSuperStyles();
             cleanJunk();
-            autoRedirectToWatch(); // Added Auto-Redirect
+            autoRedirectToWatch();
 
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
