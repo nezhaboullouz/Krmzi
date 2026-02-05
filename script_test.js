@@ -3,19 +3,21 @@
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // CONFIGURATION
+    // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
     const BLOCKED_SELECTORS = [
         // Headers & Footers
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
         '.SectionsRelated', '.SearchForm',
-        // JUNK REMOVAL
+        // NEW JUNK REMOVAL
         '.con_Ad', '.code-block', '#dream7-01',
         '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
         '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]'
+        'ins.adsbygoogle', '[id*="google_ads"]',
+        // Specific Ad Iframes only - REMOVED CSS BLOCKING FOR IFRAMES TO BE SAFE
+        // 'iframe[src*="ads"]', 'iframe[src*="tracker"]'
     ].join(', ');
 
     // ==========================================
@@ -39,11 +41,6 @@
                 z-index: -9999 !important;
             }
             
-            /* Hide Original Watch Button (To force Download button usage) */
-            #btnWatch, .single-watch-btn {
-                display: none !important;
-            }
-
             /* Body Fixes */
             body, html {
                 overflow-x: hidden !important;
@@ -55,7 +52,7 @@
             .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
                 display: block !important; 
                 visibility: visible !important;
-                z-index: 99999 !important;
+                z-index: 99999 !important; /* Force it on top */
                 opacity: 1 !important;
             }
         `;
@@ -67,8 +64,21 @@
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
+            // Remove ad iframes (Only explicit ads, removed "pop" to be safe)
             document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
             document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
+
+            // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
+            /*
+            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
+            highZ.forEach(el => {
+                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
+                    if (!el.querySelector('video') && !el.className.includes('player')) {
+                        // el.style.display = 'none'; // Dangerous
+                    }
+                }
+            });
+            */
         });
     }
 
@@ -81,6 +91,7 @@
 
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
+        // video.setAttribute('controls', 'true'); // Commented out: Might break custom player UI
 
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
@@ -111,11 +122,6 @@
                     if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
                         node.remove();
                     }
-                    
-                    // Re-apply button hijack if buttons are re-rendered
-                    if (node.querySelector && node.querySelector('#btnDown')) {
-                         forceDownloadToWatch();
-                    }
                 });
             });
         });
@@ -123,36 +129,16 @@
     }
 
     // ==========================================
-    // MODULE 5: FORCE DOWNLOAD-TO-WATCH (HIJACK)
+    // MODULE 5: AUTO-REDIRECT TO WATCH
     // ==========================================
-    function forceDownloadToWatch() {
-        const watchBtn = document.getElementById('btnWatch') || document.querySelector('.single-watch-btn');
-        const downBtn = document.getElementById('btnDown') || document.querySelector('.single-download-btn');
-
-        if (watchBtn && downBtn) {
-            // Logic: User sees Download -> Clicks Download -> Opens Watch Link
-            
-            // 1. Sanitize the Download Button
-            downBtn.removeAttribute('target'); // Prevent new tab if specific
-            
-            // 2. Hijack the click event
-            // Remove old listeners by cloning (optional, but robust)
-            const newDownBtn = downBtn.cloneNode(true);
-            downBtn.parentNode.replaceChild(newDownBtn, downBtn);
-            
-            newDownBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                // Redirect to the Watch URL
-                if (watchBtn.href) {
-                    console.log("Hijacked Download -> Opening Watch Link");
-                    window.location.href = watchBtn.href;
-                }
-            }, true);
-
-            // 3. Ensure Watch Button is hidden (CSS handles this, but JS reinforces)
-            watchBtn.style.display = 'none';
+    function autoRedirectToWatch() {
+        // If we are NOT in watch mode, and there is a watch button
+        if (!window.location.search.includes('do=watch')) {
+            const watchBtn = document.getElementById('btnWatch');
+            if (watchBtn && watchBtn.href) {
+                console.log("Auto-redirecting to Watch Mode...");
+                window.location.href = watchBtn.href;
+            }
         }
     }
 
@@ -163,7 +149,7 @@
         try {
             injectSuperStyles();
             cleanJunk();
-            forceDownloadToWatch(); // Activate Hijack
+            autoRedirectToWatch(); // Added Auto-Redirect
 
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
@@ -171,7 +157,7 @@
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log("Safe Optimization + Download Hijack Loaded");
+            console.log("Safe Optimization Loaded");
         } catch (e) {
             console.error("Error:", e);
         }
