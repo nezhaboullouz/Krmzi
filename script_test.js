@@ -1,152 +1,228 @@
 (function () {
+    // 1. SAFETY LOCK: Prevent the script from running twice and crashing the browser
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    /* 
-       ================================================================
-       🛡️ UBLOCK LITE (JAVASCRIPT EDITION)
-       ================================================================
-    */
+    // CONFIGURATION: Add any class or ID you want to remove here
+    const BLOCKED_SELECTORS = [
+        // Headers & Footers
+        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav', '.avp-body',
+        '.SectionsRelated', '.SearchForm', '.module_single_sda',
+        // Ads & Banners
+        '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
+        '.ad', '.ads', '.advertisement', '.banner', '.social-share',
+        'ins.adsbygoogle', '[id*="google_ads"]',
+        // Popups & Overlays
+        '.popup', '.modal', '.cookie-notice', '#gdpr', '.overlay', '.lightbox',
+        'iframe[src*="ads"]', 'iframe[src*="tracker"]'
+    ].join(', ');
 
-    const ADBLOCK_CONFIG = {
-        // Domains to kill at network level
-        blockedDomains: [
-            'googleads', 'g.doubleclick', 'pagead2', 'adsbygoogle', 'adservice',
-            'googlesyndication', 'adnxs', 'criteo', 'taboola', 'outbrain',
-            'popads', 'propellerads', 'exoclick', 'juicyads', 'adsterra',
-            'vidsp.net/ads', 'tracker', 'analytics', 'facebook.com/tr'
-        ],
-        // CSS Selectors to hide (Cosmetic Filtering)
-        blockedSelectors: [
-            '.con_Ad', '.code-block', '#dream7-01', '#dream7-03', '.article-ads',
-            '.footerBox', '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
-            '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-            'ins.adsbygoogle', '[id*="google_ads"]',
-            'div[class*="ads"]', 'div[id*="ads"]', 'div[class*="sponsor"]',
-            'iframe[src*="google"]', 'iframe[src*="ads"]'
-        ]
-    };
+    // ==========================================
+    // MODULE 1: FAST CSS HIDING (GPU ACCELERATED)
+    // ==========================================
+    function injectSuperStyles() {
+        const styleId = 'optimized-blocker-style';
+        if (document.getElementById(styleId)) return;
 
-    // 1. NETWORK INTERCEPTOR (The Core of uBlock)
-    // -------------------------------------------------------------
-    function activateNetworkShield() {
-        const isAd = (url) => {
-            if (!url) return false;
-            return ADBLOCK_CONFIG.blockedDomains.some(d => url.toString().includes(d));
-        };
-
-        // Hook 1: Block XMLHttpRequests (XHR)
-        const realOpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(method, url) {
-            if (isAd(url)) {
-                console.warn(`🛡️ uBlock: Blocked XHR to ${url}`);
-                return; // Silent fail
-            }
-            return realOpen.apply(this, arguments);
-        };
-
-        // Hook 2: Block Fetch API
-        const realFetch = window.fetch;
-        window.fetch = function(input, init) {
-            const url = (typeof input === 'string') ? input : input.url;
-            if (isAd(url)) {
-                console.warn(`🛡️ uBlock: Blocked Fetch to ${url}`);
-                return Promise.reject(new Error("Blocked by uBlock Lite"));
-            }
-            return realFetch.apply(this, arguments);
-        };
-
-        // Hook 3: Block Script/Iframe Injection
-        const realCreateElement = document.createElement;
-        document.createElement = function(tagName) {
-            const el = realCreateElement.call(document, tagName);
-            if (['script', 'iframe', 'img'].includes(tagName.toLowerCase())) {
-                const realSetAttribute = el.setAttribute;
-                el.setAttribute = function(name, value) {
-                    if (name.toLowerCase() === 'src' && isAd(value)) {
-                        console.warn(`🛡️ uBlock: Blocked Element Source ${value}`);
-                        return;
-                    }
-                    realSetAttribute.call(this, name, value);
-                };
-                // Property setter trap
-                Object.defineProperty(el, 'src', {
-                    set: function(val) {
-                        if (isAd(val)) return;
-                        el.setAttribute('src', val);
-                    },
-                    get: function() { return el.getAttribute('src'); }
-                });
-            }
-            return el;
-        };
-    }
-
-    // 2. COSMETIC FILTERING (CSS Injection)
-    // -------------------------------------------------------------
-    function activateCosmeticFilter() {
         const style = document.createElement('style');
+        style.id = styleId;
         style.innerHTML = `
-            ${ADBLOCK_CONFIG.blockedSelectors.join(', ')} {
+            /* Hide known junk immediately */
+            ${BLOCKED_SELECTORS} {
                 display: none !important;
                 visibility: hidden !important;
-                width: 0 !important; height: 0 !important;
+                height: 0 !important;
+                width: 0 !important;
                 pointer-events: none !important;
+                position: absolute !important;
+                z-index: -9999 !important;
             }
-            /* White Screen Fixes */
-            body, html { overflow-x: hidden !important; }
-            .article-wrap, .page-cntn, .postEmbed { display: block !important; opacity: 1 !important; visibility: visible !important; }
-            /* Player Protection */
-            .postEmbed iframe { position: relative !important; z-index: 2147483647 !important; }
+            
+            /* Force Mobile Layout */
+            body, html {
+                overflow-x: hidden !important;
+                max-width: 100vw !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            /* Make video player responsive */
+            video {
+                max-width: 100% !important;
+                height: auto !important;
+                display: block !important;
+            }
         `;
         document.head.appendChild(style);
     }
 
-    // 3. GEOMETRIC CLEANER (For overlays that bypass filters)
-    // -------------------------------------------------------------
-    function geometricClean() {
-        const player = document.querySelector('.postEmbed');
-        if (!player) return;
-        const pRect = player.getBoundingClientRect();
-        if (pRect.width < 10) return;
+    // ==========================================
+    // MODULE 2: JUNK REMOVAL (CPU OPTIMIZED)
+    // ==========================================
+    function cleanJunk() {
+        // We use requestAnimationFrame to prevent freezing the UI thread
+        requestAnimationFrame(() => {
+            // Remove iframes (they consume memory even if hidden)
+            const iframes = document.querySelectorAll('iframe[src*="ads"], iframe[src*="pop"]');
+            iframes.forEach(el => el.remove());
 
-        document.body.querySelectorAll('*').forEach(el => {
-            if (el === player || player.contains(el) || el.contains(player)) return;
-            if (['HTML','BODY','.article-wrap'].includes(el.tagName) || el.className.includes('container')) return;
+            // Remove specific scripts
+            const badScripts = document.querySelectorAll('script[src*="ads"]');
+            badScripts.forEach(el => el.remove());
 
-            const r = el.getBoundingClientRect();
-            // Check intersection (Overlap)
-            const overlap = !(r.right < pRect.left || r.left > pRect.right || r.bottom < pRect.top || r.top > pRect.bottom);
-            
-            if (overlap) {
-                const style = window.getComputedStyle(el);
-                // Hide if it's a layer on top
-                if (style.position === 'absolute' || style.position === 'fixed') {
-                    el.style.display = 'none';
+            // Handle stubborn z-index popups (Only check DIVs to save battery)
+            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
+            highZ.forEach(el => {
+                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
+                    // Double check it's not the video player
+                    if (!el.querySelector('video') && !el.className.includes('player')) {
+                        el.style.display = 'none';
+                    }
                 }
-            }
+            });
         });
     }
 
-    // --- MAIN ---
-    function init() {
-        try {
-            activateNetworkShield();    // Stop requests
-            activateCosmeticFilter();   // Hide elements
-            setInterval(geometricClean, 1500); // Check overlaps often
-            
-            // Auto Redirect
-            if (!window.location.search.includes('do=watch')) {
-                const btn = document.getElementById('btnWatch');
-                if (btn) window.location.href = btn.href;
-            }
+    // ==========================================
+    // MODULE 3: VIDEO PLAYER ENHANCER
+    // ==========================================
+    function enhanceVideo(video) {
+        if (video.dataset.enhanced) return; // Don't process twice
+        video.dataset.enhanced = "true";
 
-            console.log("🛡️ uBlock Lite Loaded");
-            if (window.webkit?.messageHandlers?.jsLoaded) window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
-        } catch(e) { console.error(e); }
+        // Force Attributes
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.setAttribute('controls', 'true');
+
+        // Prevent Auto-Pause logic
+        video.addEventListener('pause', (e) => {
+            if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
+                console.log('Blocking auto-pause');
+                e.stopImmediatePropagation();
+                video.play().catch(() => { });
+            }
+            video.pausedByClick = false; // Reset flag
+        });
+
+        video.addEventListener('click', () => {
+            video.pausedByClick = true;
+            // Reset flag after 500ms
+            setTimeout(() => { video.pausedByClick = false; }, 500);
+        });
     }
 
-    if(document.body) init();
-    else document.addEventListener('DOMContentLoaded', init);
+    // Override the browser's internal pause command
+    const originalPause = HTMLVideoElement.prototype.pause;
+    HTMLVideoElement.prototype.pause = function () {
+        // Only allow pause if the video ended or user clicked
+        if (this.ended || this.pausedByClick) {
+            originalPause.apply(this, arguments);
+        }
+    };
+
+    // ==========================================
+    // MODULE 4: THE OBSERVER (WATCHES FOR CHANGES)
+    // ==========================================
+    function startMonitoring() {
+        const observer = new MutationObserver((mutations) => {
+            let foundNewVideo = false;
+            let foundNewJunk = false;
+
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return; // Skip text nodes
+
+                    // Check for video
+                    if (node.tagName === 'VIDEO') {
+                        enhanceVideo(node);
+                    } else if (node.querySelectorAll) {
+                        node.querySelectorAll('video').forEach(enhanceVideo);
+                    }
+
+                    // Check for junk (only simple check to save CPU)
+                    if (node.tagName === 'IFRAME' || node.matches && node.matches('.popup, .modal')) {
+                        foundNewJunk = true;
+                    }
+                });
+            });
+
+            if (foundNewJunk) cleanJunk();
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    // ==========================================
+    // MODULE 5: REDIRECTION SKIPPER
+    // ==========================================
+    function skipRedirects() {
+        document.body.addEventListener('click', function (e) {
+            let target = e.target;
+            while (target && target.tagName !== 'A') {
+                target = target.parentElement;
+            }
+
+            if (target && target.href) {
+                const url = new URL(target.href);
+                if (url.hostname.includes('fashny.net')) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+
+                    const redirectedUrl = url.searchParams.get('url');
+                    if (redirectedUrl) {
+                        try {
+                            const decodedUrl = atob(redirectedUrl);
+                            window.location.href = decodedUrl;
+                        } catch (error) {
+                            console.error('Failed to decode or navigate:', error);
+                            window.location.href = target.href; // fallback
+                        }
+                    }
+                }
+            }
+        }, true); // Use capture phase to catch the event early
+    }
+
+    // ==========================================
+    // MAIN EXECUTION
+    // ==========================================
+    function init() {
+        try {
+            injectSuperStyles();
+            cleanJunk();
+            skipRedirects();
+
+            // Enhance existing videos
+            document.querySelectorAll('video').forEach(enhanceVideo);
+
+            // Start watching for new content
+            startMonitoring();
+
+            // Background Play Enforcer
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    document.querySelectorAll('video').forEach(v => {
+                        if (v.paused && !v.ended) v.play().catch(() => { });
+                    });
+                }
+            });
+
+            // Notify App (Swift/Android)
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
+                window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
+            }
+            console.log("Device Optimization Loaded Successfully");
+        } catch (e) {
+            console.error("Optimization Error:", e);
+        }
+    }
+
+    // Run immediately or wait for body
+    if (document.body) {
+        init();
+    } else {
+        document.addEventListener('DOMContentLoaded', init);
+    }
 
 })();
