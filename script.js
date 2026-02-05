@@ -3,24 +3,19 @@
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // CONFIGURATION
-    const BLOCKED_SELECTORS = [
-        // Headers & Footers (Only if you want "Cinema Mode")
-        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
-        '.SectionsRelated', '.SearchForm',
-        
-        // ADS ONLY (I removed .article-wrap, .page-cntn, .cat-title etc.)
-        '.con_Ad', '.code-block', '#dream7-01', '#dream7-03', 
-        '.article-ads', 
-        
-        // Ads & Banners
+    // CONFIGURATION: JUNK ONLY (No content selectors)
+    const JUNK_SELECTORS = [
+        '.con_Ad', '.code-block', 
+        '#dream7-01', '#dream7-03', // The specific ads covering your player
+        '.article-ads', '.footerBox',
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]'
+        'ins.adsbygoogle', '[id*="google_ads"]',
+        'iframe[src*="google"]', 'iframe[src*="doubleclick"]'
     ].join(', ');
 
     // ==========================================
-    // MODULE 1: FAST CSS HIDING
+    // MODULE 1: CSS BLOCKING & LAYOUT FIXES
     // ==========================================
     function injectSuperStyles() {
         const styleId = 'optimized-blocker-style';
@@ -29,8 +24,8 @@
         const style = document.createElement('style');
         style.id = styleId;
         style.innerHTML = `
-            /* Hide known junk */
-            ${BLOCKED_SELECTORS} {
+            /* Hide known ads */
+            ${JUNK_SELECTORS} {
                 display: none !important;
                 visibility: hidden !important;
                 height: 0 !important;
@@ -46,28 +41,49 @@
                 max-width: 100vw !important;
             }
             
-            /* FORCE SHOW CONTENT - This ensures we never hide the article */
-            .article-wrap, .page-cntn, .category-cntn, .one-cat, .cat-title,
-            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
-            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
+            /* CRITICAL: FORCE PLAYER ON TOP */
+            .postEmbed, .servContent, .singleInfo, #player-modal, iframe {
                 display: block !important; 
                 visibility: visible !important;
-                z-index: 1 !important; 
+                z-index: 2147483647 !important; /* Max Z-Index */
                 opacity: 1 !important;
-                height: auto !important;
-                width: auto !important;
+                position: relative !important;
+            }
+
+            /* FORCE CONTENT VISIBLITY (Prevent White Screen) */
+            .article-wrap, .page-cntn, .category-cntn, .one-cat {
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
         `;
         document.head.appendChild(style);
     }
 
     // ==========================================
-    // MODULE 2: JUNK REMOVAL
+    // MODULE 2: AGGRESSIVE JS CLEANING
     // ==========================================
     function cleanJunk() {
-        requestAnimationFrame(() => {
-            document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
-            document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
+        // Remove known junk elements
+        const junk = document.querySelectorAll(JUNK_SELECTORS);
+        junk.forEach(el => el.remove());
+
+        // Remove overlapping invisible overlays
+        document.querySelectorAll('div, a').forEach(el => {
+            const style = window.getComputedStyle(el);
+            // If element is fixed/absolute and covers the screen but is NOT the player
+            if ((style.position === 'fixed' || style.position === 'absolute') && style.zIndex > 1000) {
+                if (!el.querySelector('video') && !el.querySelector('iframe') && !el.className.includes('nav') && !el.className.includes('header')) {
+                     el.remove(); // Delete invisible blockers
+                }
+            }
+        });
+
+        // Specific Iframe cleaning
+        document.querySelectorAll('iframe').forEach(iframe => {
+            if (iframe.src.includes('ads') || iframe.src.includes('doubleclick')) {
+                iframe.remove();
+            }
         });
     }
 
@@ -95,33 +111,13 @@
     }
 
     // ==========================================
-    // MODULE 4: MONITORING
-    // ==========================================
-    function startMonitoring() {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType !== 1) return;
-                    if (node.tagName === 'VIDEO') enhanceVideo(node);
-                    else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
-                    
-                    if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
-                        node.remove();
-                    }
-                });
-            });
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
-
-    // ==========================================
-    // MODULE 5: AUTO-REDIRECT TO WATCH
+    // MODULE 4: AUTO-REDIRECT
     // ==========================================
     function autoRedirectToWatch() {
         if (!window.location.search.includes('do=watch')) {
             const watchBtn = document.getElementById('btnWatch');
             if (watchBtn && watchBtn.href) {
-                console.log("Auto-redirecting to Watch Mode...");
+                console.log("Auto-redirecting...");
                 window.location.href = watchBtn.href;
             }
         }
@@ -130,6 +126,20 @@
     // ==========================================
     // INIT
     // ==========================================
+    function startMonitoring() {
+        const observer = new MutationObserver((mutations) => {
+            cleanJunk(); // Clean on every update
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    if (node.tagName === 'VIDEO') enhanceVideo(node);
+                    else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
     function init() {
         try {
             injectSuperStyles();
@@ -138,6 +148,7 @@
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
 
+            // Notify App
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
@@ -147,7 +158,11 @@
         }
     }
 
+    // Run immediately and ensure it stays clean
     if (document.body) init();
     else document.addEventListener('DOMContentLoaded', init);
+    
+    // Safety Force Clean every 2 seconds
+    setInterval(cleanJunk, 2000);
 
 })();
