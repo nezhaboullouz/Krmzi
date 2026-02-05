@@ -5,13 +5,13 @@
 
     // CONFIGURATION
     const BLOCKED_SELECTORS = [
-        // Headers & Footers (Keep these if you want a "Cinema Mode", remove if you want to see the menu)
+        // Headers & Footers (Only if you want "Cinema Mode")
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
         '.SectionsRelated', '.SearchForm',
         
-        // ADS & JUNK ONLY (Removed content classes like .article-wrap, .page-cntn)
-        '.con_Ad', '.code-block', '#dream7-01',
-        '.article-ads', '.footerBox',
+        // ADS ONLY (I removed .article-wrap, .page-cntn, .cat-title etc.)
+        '.con_Ad', '.code-block', '#dream7-01', '#dream7-03', 
+        '.article-ads', 
         
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
@@ -46,14 +46,16 @@
                 max-width: 100vw !important;
             }
             
-            /* Ensure Player Modal and CONTENT is Visible */
+            /* FORCE SHOW CONTENT - This ensures we never hide the article */
+            .article-wrap, .page-cntn, .category-cntn, .one-cat, .cat-title,
             .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
-            .postEmbed, .sec-main, .servContent, .singleInfo, iframe,
-            .article-wrap, .page-cntn {  /* Added content wrappers here just in case */
+            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
                 display: block !important; 
                 visibility: visible !important;
-                z-index: 99999 !important;
+                z-index: 1 !important; 
                 opacity: 1 !important;
+                height: auto !important;
+                width: auto !important;
             }
         `;
         document.head.appendChild(style);
@@ -75,7 +77,6 @@
     function enhanceVideo(video) {
         if (video.dataset.enhanced) return;
         video.dataset.enhanced = "true";
-
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
 
@@ -101,10 +102,9 @@
             mutations.forEach(mutation => {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
-
                     if (node.tagName === 'VIDEO') enhanceVideo(node);
                     else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
-
+                    
                     if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
                         node.remove();
                     }
@@ -135,7 +135,6 @@
             injectSuperStyles();
             cleanJunk();
             autoRedirectToWatch();
-
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
 
