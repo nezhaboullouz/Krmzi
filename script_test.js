@@ -3,21 +3,19 @@
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
+    // CONFIGURATION
     const BLOCKED_SELECTORS = [
         // Headers & Footers
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
         '.SectionsRelated', '.SearchForm',
-        // NEW JUNK REMOVAL
+        // JUNK REMOVAL
         '.con_Ad', '.code-block', '#dream7-01',
         '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
         '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]',
-        // Specific Ad Iframes only - REMOVED CSS BLOCKING FOR IFRAMES TO BE SAFE
-        // 'iframe[src*="ads"]', 'iframe[src*="tracker"]'
+        'ins.adsbygoogle', '[id*="google_ads"]'
     ].join(', ');
 
     // ==========================================
@@ -41,6 +39,18 @@
                 z-index: -9999 !important;
             }
             
+            /* Hide Download Button (Users shouldn't see this) */
+            #btnDown, .single-download-btn {
+                display: none !important;
+            }
+
+            /* Ensure Watch Button IS Visible */
+            #btnWatch, .single-watch-btn {
+                display: flex !important;
+                opacity: 1 !important;
+                visibility: visible !important;
+            }
+
             /* Body Fixes */
             body, html {
                 overflow-x: hidden !important;
@@ -52,7 +62,7 @@
             .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
                 display: block !important; 
                 visibility: visible !important;
-                z-index: 99999 !important; /* Force it on top */
+                z-index: 99999 !important;
                 opacity: 1 !important;
             }
         `;
@@ -64,21 +74,8 @@
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
-            // Remove ad iframes (Only explicit ads, removed "pop" to be safe)
             document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
             document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
-
-            // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
-            /*
-            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
-            highZ.forEach(el => {
-                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
-                    if (!el.querySelector('video') && !el.className.includes('player')) {
-                        // el.style.display = 'none'; // Dangerous
-                    }
-                }
-            });
-            */
         });
     }
 
@@ -91,7 +88,6 @@
 
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
-        // video.setAttribute('controls', 'true'); // Commented out: Might break custom player UI
 
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
@@ -122,6 +118,11 @@
                     if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
                         node.remove();
                     }
+                    
+                    // Re-apply button hijack if buttons are re-rendered
+                    if (node.querySelector && node.querySelector('#btnWatch')) {
+                         forceWatchToDownload();
+                    }
                 });
             });
         });
@@ -129,16 +130,44 @@
     }
 
     // ==========================================
-    // MODULE 5: AUTO-REDIRECT TO WATCH
+    // MODULE 5: FORCE WATCH-TO-DOWNLOAD (DUAL CLICK)
     // ==========================================
-    function autoRedirectToWatch() {
-        // If we are NOT in watch mode, and there is a watch button
-        if (!window.location.search.includes('do=watch')) {
-            const watchBtn = document.getElementById('btnWatch');
-            if (watchBtn && watchBtn.href) {
-                console.log("Auto-redirecting to Watch Mode...");
-                window.location.href = watchBtn.href;
-            }
+    function forceWatchToDownload() {
+        const watchBtn = document.getElementById('btnWatch') || document.querySelector('.single-watch-btn');
+        const downBtn = document.getElementById('btnDown') || document.querySelector('.single-download-btn');
+
+        if (watchBtn && downBtn) {
+            // Logic: User sees Watch -> Clicks Watch -> 
+            // 1. Opens Download Link in New Tab (Real User Click Simulation)
+            // 2. Navigates Current Tab to Watch Link
+            
+            // Remove old listeners
+            const newWatchBtn = watchBtn.cloneNode(true);
+            watchBtn.parentNode.replaceChild(newWatchBtn, watchBtn);
+            
+            // Ensure visual state
+            newWatchBtn.style.display = 'flex';
+            newWatchBtn.removeAttribute('target'); // Handle target manually
+            
+            newWatchBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const downloadUrl = downBtn.href;
+                const watchUrl = newWatchBtn.href;
+
+                if (downloadUrl) {
+                    // Open Download in New Tab to satisfy "must be clicked" requirement
+                    window.open(downloadUrl, '_blank'); 
+                }
+
+                if (watchUrl) {
+                    // Navigate main window to Watch
+                    setTimeout(() => {
+                        window.location.href = watchUrl;
+                    }, 100);
+                }
+            }, true);
         }
     }
 
@@ -149,7 +178,7 @@
         try {
             injectSuperStyles();
             cleanJunk();
-            autoRedirectToWatch(); // Added Auto-Redirect
+            forceWatchToDownload(); // Activate Hijack
 
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
@@ -157,7 +186,7 @@
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log("Safe Optimization Loaded");
+            console.log("Safe Optimization + Dual Action Loaded");
         } catch (e) {
             console.error("Error:", e);
         }
