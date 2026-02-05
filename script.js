@@ -1,169 +1,152 @@
 (function () {
-    // 1. SAFETY LOCK
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
-    // CONFIGURATION: REMOVED .popup, .modal, .overlay from here because they block the player!
-    const BLOCKED_SELECTORS = [
-        // Headers & Footers
-        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
-        '.SectionsRelated', '.SearchForm',
-        // NEW JUNK REMOVAL
-        '.con_Ad', '.code-block', '#dream7-01',
-        '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
-        '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
-        // Ads & Banners
-        '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
-        '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]',
-        // Specific Ad Iframes only - REMOVED CSS BLOCKING FOR IFRAMES TO BE SAFE
-        // 'iframe[src*="ads"]', 'iframe[src*="tracker"]'
-    ].join(', ');
+    /* 
+       ================================================================
+       🛡️ UBLOCK LITE (JAVASCRIPT EDITION)
+       ================================================================
+    */
 
-    // ==========================================
-    // MODULE 1: FAST CSS HIDING
-    // ==========================================
-    function injectSuperStyles() {
-        const styleId = 'optimized-blocker-style';
-        if (document.getElementById(styleId)) return;
+    const ADBLOCK_CONFIG = {
+        // Domains to kill at network level
+        blockedDomains: [
+            'googleads', 'g.doubleclick', 'pagead2', 'adsbygoogle', 'adservice',
+            'googlesyndication', 'adnxs', 'criteo', 'taboola', 'outbrain',
+            'popads', 'propellerads', 'exoclick', 'juicyads', 'adsterra',
+            'vidsp.net/ads', 'tracker', 'analytics', 'facebook.com/tr'
+        ],
+        // CSS Selectors to hide (Cosmetic Filtering)
+        blockedSelectors: [
+            '.con_Ad', '.code-block', '#dream7-01', '#dream7-03', '.article-ads',
+            '.footerBox', '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
+            '.ad', '.ads', '.advertisement', '.banner', '.social-share',
+            'ins.adsbygoogle', '[id*="google_ads"]',
+            'div[class*="ads"]', 'div[id*="ads"]', 'div[class*="sponsor"]',
+            'iframe[src*="google"]', 'iframe[src*="ads"]'
+        ]
+    };
 
+    // 1. NETWORK INTERCEPTOR (The Core of uBlock)
+    // -------------------------------------------------------------
+    function activateNetworkShield() {
+        const isAd = (url) => {
+            if (!url) return false;
+            return ADBLOCK_CONFIG.blockedDomains.some(d => url.toString().includes(d));
+        };
+
+        // Hook 1: Block XMLHttpRequests (XHR)
+        const realOpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url) {
+            if (isAd(url)) {
+                console.warn(`🛡️ uBlock: Blocked XHR to ${url}`);
+                return; // Silent fail
+            }
+            return realOpen.apply(this, arguments);
+        };
+
+        // Hook 2: Block Fetch API
+        const realFetch = window.fetch;
+        window.fetch = function(input, init) {
+            const url = (typeof input === 'string') ? input : input.url;
+            if (isAd(url)) {
+                console.warn(`🛡️ uBlock: Blocked Fetch to ${url}`);
+                return Promise.reject(new Error("Blocked by uBlock Lite"));
+            }
+            return realFetch.apply(this, arguments);
+        };
+
+        // Hook 3: Block Script/Iframe Injection
+        const realCreateElement = document.createElement;
+        document.createElement = function(tagName) {
+            const el = realCreateElement.call(document, tagName);
+            if (['script', 'iframe', 'img'].includes(tagName.toLowerCase())) {
+                const realSetAttribute = el.setAttribute;
+                el.setAttribute = function(name, value) {
+                    if (name.toLowerCase() === 'src' && isAd(value)) {
+                        console.warn(`🛡️ uBlock: Blocked Element Source ${value}`);
+                        return;
+                    }
+                    realSetAttribute.call(this, name, value);
+                };
+                // Property setter trap
+                Object.defineProperty(el, 'src', {
+                    set: function(val) {
+                        if (isAd(val)) return;
+                        el.setAttribute('src', val);
+                    },
+                    get: function() { return el.getAttribute('src'); }
+                });
+            }
+            return el;
+        };
+    }
+
+    // 2. COSMETIC FILTERING (CSS Injection)
+    // -------------------------------------------------------------
+    function activateCosmeticFilter() {
         const style = document.createElement('style');
-        style.id = styleId;
         style.innerHTML = `
-            /* Hide known junk */
-            ${BLOCKED_SELECTORS} {
+            ${ADBLOCK_CONFIG.blockedSelectors.join(', ')} {
                 display: none !important;
                 visibility: hidden !important;
-                height: 0 !important;
-                width: 0 !important;
+                width: 0 !important; height: 0 !important;
                 pointer-events: none !important;
-                position: absolute !important;
-                z-index: -9999 !important;
             }
-            
-            /* Body Fixes */
-            body, html {
-                overflow-x: hidden !important;
-                max-width: 100vw !important;
-            }
-            
-            /* Ensure Player Modal is Visible */
-            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
-            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
-                display: block !important; 
-                visibility: visible !important;
-                z-index: 99999 !important; /* Force it on top */
-                opacity: 1 !important;
-            }
+            /* White Screen Fixes */
+            body, html { overflow-x: hidden !important; }
+            .article-wrap, .page-cntn, .postEmbed { display: block !important; opacity: 1 !important; visibility: visible !important; }
+            /* Player Protection */
+            .postEmbed iframe { position: relative !important; z-index: 2147483647 !important; }
         `;
         document.head.appendChild(style);
     }
 
-    // ==========================================
-    // MODULE 2: JUNK REMOVAL
-    // ==========================================
-    function cleanJunk() {
-        requestAnimationFrame(() => {
-            // Remove ad iframes (Only explicit ads, removed "pop" to be safe)
-            document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
-            document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
+    // 3. GEOMETRIC CLEANER (For overlays that bypass filters)
+    // -------------------------------------------------------------
+    function geometricClean() {
+        const player = document.querySelector('.postEmbed');
+        if (!player) return;
+        const pRect = player.getBoundingClientRect();
+        if (pRect.width < 10) return;
 
-            // DISABLED AGGRESSIVE Z-INDEX CHECK - It was killing the player!
-            /*
-            const highZ = document.querySelectorAll('div[style*="z-index"], div[style*="position: fixed"]');
-            highZ.forEach(el => {
-                if (el.style.zIndex > 999 || el.style.position === 'fixed') {
-                    if (!el.querySelector('video') && !el.className.includes('player')) {
-                        // el.style.display = 'none'; // Dangerous
-                    }
+        document.body.querySelectorAll('*').forEach(el => {
+            if (el === player || player.contains(el) || el.contains(player)) return;
+            if (['HTML','BODY','.article-wrap'].includes(el.tagName) || el.className.includes('container')) return;
+
+            const r = el.getBoundingClientRect();
+            // Check intersection (Overlap)
+            const overlap = !(r.right < pRect.left || r.left > pRect.right || r.bottom < pRect.top || r.top > pRect.bottom);
+            
+            if (overlap) {
+                const style = window.getComputedStyle(el);
+                // Hide if it's a layer on top
+                if (style.position === 'absolute' || style.position === 'fixed') {
+                    el.style.display = 'none';
                 }
-            });
-            */
-        });
-    }
-
-    // ==========================================
-    // MODULE 3: VIDEO ENHANCER
-    // ==========================================
-    function enhanceVideo(video) {
-        if (video.dataset.enhanced) return;
-        video.dataset.enhanced = "true";
-
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        // video.setAttribute('controls', 'true'); // Commented out: Might break custom player UI
-
-        video.addEventListener('pause', (e) => {
-            if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
-                e.stopImmediatePropagation();
-                video.play().catch(() => { });
             }
-            video.pausedByClick = false;
-        });
-
-        video.addEventListener('click', () => {
-            video.pausedByClick = true;
-            setTimeout(() => { video.pausedByClick = false; }, 500);
         });
     }
 
-    // ==========================================
-    // MODULE 4: MONITORING
-    // ==========================================
-    function startMonitoring() {
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach(mutation => {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType !== 1) return;
-
-                    if (node.tagName === 'VIDEO') enhanceVideo(node);
-                    else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
-
-                    if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
-                        node.remove();
-                    }
-                });
-            });
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-    }
-
-    // ==========================================
-    // MODULE 5: AUTO-REDIRECT TO WATCH
-    // ==========================================
-    function autoRedirectToWatch() {
-        // If we are NOT in watch mode, and there is a watch button
-        if (!window.location.search.includes('do=watch')) {
-            const watchBtn = document.getElementById('btnWatch');
-            if (watchBtn && watchBtn.href) {
-                console.log("Auto-redirecting to Watch Mode...");
-                window.location.href = watchBtn.href;
-            }
-        }
-    }
-
-    // ==========================================
-    // INIT
-    // ==========================================
+    // --- MAIN ---
     function init() {
         try {
-            injectSuperStyles();
-            cleanJunk();
-            autoRedirectToWatch(); // Added Auto-Redirect
-
-            document.querySelectorAll('video').forEach(enhanceVideo);
-            startMonitoring();
-
-            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
-                window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
+            activateNetworkShield();    // Stop requests
+            activateCosmeticFilter();   // Hide elements
+            setInterval(geometricClean, 1500); // Check overlaps often
+            
+            // Auto Redirect
+            if (!window.location.search.includes('do=watch')) {
+                const btn = document.getElementById('btnWatch');
+                if (btn) window.location.href = btn.href;
             }
-            console.log("Safe Optimization Loaded");
-        } catch (e) {
-            console.error("Error:", e);
-        }
+
+            console.log("🛡️ uBlock Lite Loaded");
+            if (window.webkit?.messageHandlers?.jsLoaded) window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
+        } catch(e) { console.error(e); }
     }
 
-    if (document.body) init();
+    if(document.body) init();
     else document.addEventListener('DOMContentLoaded', init);
 
 })();
