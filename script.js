@@ -100,9 +100,22 @@
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
-            // Remove ad iframes and scripts completely
-            const trash = document.querySelectorAll('iframe[src*="ads"], script[src*="ads"], .ad, .ads');
+            // 1. Remove ad iframes and scripts completely
+            const trash = document.querySelectorAll(
+                'iframe[src*="ads"], script[src*="ads"], .ad, .ads, ' +
+                'script[src*="madurird"], script[src*="esheaq"], script[src*="dtscout"], ' + // NEW: Block ad networks
+                'iframe[src*="madurird"], iframe[src*="esheaq"], iframe[src*="dtscout"]'
+            );
             trash.forEach(el => el.remove());
+
+            // 2. Remove High Z-Index Click-Jacking Overlays
+            const highZ = document.querySelectorAll('.con_search, #search, [style*="z-index"]');
+            highZ.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (parseInt(style.zIndex) > 5000 && !el.className.includes('modal') && !el.className.includes('player')) {
+                    el.remove(); // Nuke it
+                }
+            });
         });
     }
 
@@ -144,6 +157,13 @@
 
                     // 2. Kill Ads
                     if (node.tagName === 'IFRAME' && node.src.includes('ads')) node.remove();
+
+                    // NEW: Block specific ad networks on sight
+                    if ((node.tagName === 'SCRIPT' || node.tagName === 'IFRAME') &&
+                        (node.src.includes('madurird') || node.src.includes('esheaq') || node.src.includes('dtscout'))) {
+                        node.remove();
+                    }
+
                     if (node.matches && node.matches(BLOCKED_SELECTORS)) node.remove();
 
                     // 3. Hijack Buttons
