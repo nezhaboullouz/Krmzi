@@ -3,23 +3,39 @@
     if (window.__optimizationScriptActive) return;
     window.__optimizationScriptActive = true;
 
+    // ==========================================
     // CONFIGURATION
+    // ==========================================
+    
+    // 1. BLOCKED LIST (Junk to hide/remove)
+    // I removed risky classes like .page-cntn and .article-wrap that cause White Screens
     const BLOCKED_SELECTORS = [
-        // Headers & Footers
+        // Headers & Footers (Safe to hide)
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
-        '.SectionsRelated', '.SearchForm',
-        // JUNK REMOVAL
-        '.con_Ad', '.code-block', '#dream7-01',
-        '.article-wrap', '.page-cntn', '.cat-title', '.article-ads',
-        '.category-cntn', '.one-cat', '.copyRight', '.footerBox',
+        '.SectionsRelated', '.SearchForm', '.copyRight', '.footerBox',
+        // Ad Containers
+        '.con_Ad', '.code-block', '#dream7-01', '.article-ads',
         // Ads & Banners
         '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
         '.ad', '.ads', '.advertisement', '.banner', '.social-share',
         'ins.adsbygoogle', '[id*="google_ads"]'
     ].join(', ');
 
+    // 2. SAFE LIST (CRITICAL: These are FORCED to show to prevent White Screen)
+    const SAFE_SELECTORS = [
+        '.singleـwrapper', 
+        '.single_wrapper', 
+        '.single_content',
+        '.postContent',
+        '.entry-content',
+        '.single_main',
+        'video',
+        '.watch-modal',
+        '#player-modal'
+    ].join(', ');
+
     // ==========================================
-    // MODULE 1: FAST CSS HIDING
+    // MODULE 1: VISUAL ENGINE (CSS)
     // ==========================================
     function injectSuperStyles() {
         const styleId = 'optimized-blocker-style';
@@ -28,7 +44,7 @@
         const style = document.createElement('style');
         style.id = styleId;
         style.innerHTML = `
-            /* Hide known junk */
+            /* 1. HIDE JUNK */
             ${BLOCKED_SELECTORS} {
                 display: none !important;
                 visibility: hidden !important;
@@ -39,43 +55,50 @@
                 z-index: -9999 !important;
             }
             
-            /* Hide Download Button (Users shouldn't see this) */
-            #btnDown, .single-download-btn {
-                display: none !important;
-            }
-
-            /* Ensure Watch Button IS Visible */
-            #btnWatch, .single-watch-btn {
-                display: flex !important;
-                opacity: 1 !important;
+            /* 2. FORCE SHOW CONTENT (Fixes White Screen on 4G) */
+            ${SAFE_SELECTORS} {
+                display: block !important;
                 visibility: visible !important;
+                opacity: 1 !important;
+                height: auto !important;
+                width: auto !important;
+                position: relative !important;
+                z-index: 1 !important;
             }
 
-            /* Body Fixes */
-            body, html {
-                overflow-x: hidden !important;
-                max-width: 100vw !important;
-            }
-            
-            /* Ensure Player Modal is Visible */
-            .modal, .popup, .overlay, .lightbox, #player-modal, .watch-modal,
-            .postEmbed, .sec-main, .servContent, .singleInfo, iframe {
+            /* 3. PLAYER & IFRAME FIXES (Ensure Video is visible) */
+            .modal, .popup, .overlay, .lightbox, #player-modal, iframe {
                 display: block !important; 
                 visibility: visible !important;
-                z-index: 99999 !important;
+                z-index: 99999 !important; 
                 opacity: 1 !important;
+            }
+
+            /* 4. BUTTON MANAGER */
+            #btnDown, .single-download-btn { display: none !important; } /* Hide Download */
+            #btnWatch, .single-watch-btn { 
+                display: flex !important; 
+                visibility: visible !important; 
+                opacity: 1 !important;
+            }
+
+            /* 5. BODY OPTIMIZATION */
+            body, html {
+                overflow-x: hidden !important;
+                background-color: #111 !important; /* Prevents white flash */
             }
         `;
         document.head.appendChild(style);
     }
 
     // ==========================================
-    // MODULE 2: JUNK REMOVAL
+    // MODULE 2: RADICAL CLEANER (DOM Removal)
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
-            document.querySelectorAll('iframe[src*="ads"]').forEach(el => el.remove());
-            document.querySelectorAll('script[src*="ads"]').forEach(el => el.remove());
+            // Remove ad iframes and scripts completely from memory
+            const trash = document.querySelectorAll('iframe[src*="ads"], script[src*="ads"], .ad, .ads');
+            trash.forEach(el => el.remove());
         });
     }
 
@@ -85,14 +108,14 @@
     function enhanceVideo(video) {
         if (video.dataset.enhanced) return;
         video.dataset.enhanced = "true";
-
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
-
+        
+        // Prevent auto-pause interference
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
                 e.stopImmediatePropagation();
-                video.play().catch(() => { });
+                video.play().catch(() => {});
             }
             video.pausedByClick = false;
         });
@@ -104,7 +127,7 @@
     }
 
     // ==========================================
-    // MODULE 4: MONITORING
+    // MODULE 4: THE SENTINEL (Monitoring)
     // ==========================================
     function startMonitoring() {
         const observer = new MutationObserver((mutations) => {
@@ -112,14 +135,19 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType !== 1) return;
 
+                    // 1. Catch Videos
                     if (node.tagName === 'VIDEO') enhanceVideo(node);
                     else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
 
+                    // 2. Kill Ads on Sight (Radical Removal)
                     if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
                         node.remove();
                     }
+                    if (node.matches && node.matches(BLOCKED_SELECTORS)) {
+                        node.remove();
+                    }
                     
-                    // Re-apply button hijack if buttons are re-rendered
+                    // 3. Re-apply Button Hijack if content reloads
                     if (node.querySelector && node.querySelector('#btnWatch')) {
                          forceWatchToDownload();
                     }
@@ -130,24 +158,18 @@
     }
 
     // ==========================================
-    // MODULE 5: FORCE WATCH-TO-DOWNLOAD (DUAL CLICK)
+    // MODULE 5: FORCE WATCH -> DOWNLOAD (Dual Action)
     // ==========================================
     function forceWatchToDownload() {
         const watchBtn = document.getElementById('btnWatch') || document.querySelector('.single-watch-btn');
         const downBtn = document.getElementById('btnDown') || document.querySelector('.single-download-btn');
 
         if (watchBtn && downBtn) {
-            // Logic: User sees Watch -> Clicks Watch -> 
-            // 1. Opens Download Link in New Tab (Real User Click Simulation)
-            // 2. Navigates Current Tab to Watch Link
-            
-            // Remove old listeners
+            // Clone to remove old listeners
             const newWatchBtn = watchBtn.cloneNode(true);
             watchBtn.parentNode.replaceChild(newWatchBtn, watchBtn);
             
-            // Ensure visual state
-            newWatchBtn.style.display = 'flex';
-            newWatchBtn.removeAttribute('target'); // Handle target manually
+            newWatchBtn.removeAttribute('target'); 
             
             newWatchBtn.addEventListener('click', function(e) {
                 e.preventDefault();
@@ -156,17 +178,11 @@
                 const downloadUrl = downBtn.href;
                 const watchUrl = newWatchBtn.href;
 
-                if (downloadUrl) {
-                    // Open Download in New Tab to satisfy "must be clicked" requirement
-                    window.open(downloadUrl, '_blank'); 
-                }
+                // 1. Open Download (Trigger in new tab)
+                if (downloadUrl) window.open(downloadUrl, '_blank'); 
 
-                if (watchUrl) {
-                    // Navigate main window to Watch
-                    setTimeout(() => {
-                        window.location.href = watchUrl;
-                    }, 100);
-                }
+                // 2. Go to Watch (Navigate current tab)
+                if (watchUrl) setTimeout(() => { window.location.href = watchUrl; }, 100);
             }, true);
         }
     }
@@ -178,15 +194,14 @@
         try {
             injectSuperStyles();
             cleanJunk();
-            forceWatchToDownload(); // Activate Hijack
-
+            forceWatchToDownload(); 
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
 
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log("Safe Optimization + Dual Action Loaded");
+            console.log("Radical Fix Loaded");
         } catch (e) {
             console.error("Error:", e);
         }
