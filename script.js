@@ -103,8 +103,8 @@
             // 1. Remove ad iframes and scripts completely
             const trash = document.querySelectorAll(
                 'iframe[src*="ads"], script[src*="ads"], .ad, .ads, ' +
-                'script[src*="madurird"], script[src*="esheaq"], script[src*="dtscout"], ' + // NEW: Block ad networks
-                'iframe[src*="madurird"], iframe[src*="esheaq"], iframe[src*="dtscout"]'
+                'script[src*="madurird"], script[src*="dtscout"], ' + // NEW: Block ad networks
+                'iframe[src*="madurird"], iframe[src*="dtscout"]'
             );
             trash.forEach(el => el.remove());
 
@@ -160,7 +160,7 @@
 
                     // NEW: Block specific ad networks on sight
                     if ((node.tagName === 'SCRIPT' || node.tagName === 'IFRAME') &&
-                        (node.src.includes('madurird') || node.src.includes('esheaq') || node.src.includes('dtscout'))) {
+                        (node.src.includes('madurird') || node.src.includes('dtscout'))) {
                         node.remove();
                     }
 
