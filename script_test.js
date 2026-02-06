@@ -6,9 +6,9 @@
     // ==========================================
     // CONFIGURATION
     // ==========================================
-    
+
     // 1. BLOCKED LIST (Junk to hide/remove)
-    // I removed risky classes like .page-cntn and .article-wrap that cause White Screens
+    // Removed risky selectors like .page-cntn, .article-wrap, etc.
     const BLOCKED_SELECTORS = [
         // Headers & Footers (Safe to hide)
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
@@ -21,17 +21,18 @@
         'ins.adsbygoogle', '[id*="google_ads"]'
     ].join(', ');
 
-    // 2. SAFE LIST (CRITICAL: These are FORCED to show to prevent White Screen)
+    // 2. SAFE LIST (CRITICAL: These are FORCED to show)
     const SAFE_SELECTORS = [
-        '.singleـwrapper', 
-        '.single_wrapper', 
+        '.singleـwrapper',
+        '.single_wrapper',
         '.single_content',
         '.postContent',
         '.entry-content',
         '.single_main',
         'video',
         '.watch-modal',
-        '#player-modal'
+        '#player-modal',
+        '#content', '.content', '.main', '.container'
     ].join(', ');
 
     // ==========================================
@@ -55,7 +56,7 @@
                 z-index: -9999 !important;
             }
             
-            /* 2. FORCE SHOW CONTENT (Fixes White Screen on 4G) */
+            /* 2. FORCE SHOW CONTENT (Fixes White Screen) */
             ${SAFE_SELECTORS} {
                 display: block !important;
                 visibility: visible !important;
@@ -66,7 +67,7 @@
                 z-index: 1 !important;
             }
 
-            /* 3. PLAYER & IFRAME FIXES (Ensure Video is visible) */
+            /* 3. PLAYER & IFRAME FIXES */
             .modal, .popup, .overlay, .lightbox, #player-modal, iframe {
                 display: block !important; 
                 visibility: visible !important;
@@ -75,17 +76,20 @@
             }
 
             /* 4. BUTTON MANAGER */
-            #btnDown, .single-download-btn { display: none !important; } /* Hide Download */
+            #btnDown, .single-download-btn { display: none !important; } 
             #btnWatch, .single-watch-btn { 
                 display: flex !important; 
                 visibility: visible !important; 
                 opacity: 1 !important;
             }
 
-            /* 5. BODY OPTIMIZATION */
+            /* 5. BODY OPTIMIZATION - FORCE VISIBILITY */
             body, html {
                 overflow-x: hidden !important;
-                background-color: #111 !important; /* Prevents white flash */
+                background-color: #111 !important; 
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
             }
         `;
         document.head.appendChild(style);
@@ -96,7 +100,7 @@
     // ==========================================
     function cleanJunk() {
         requestAnimationFrame(() => {
-            // Remove ad iframes and scripts completely from memory
+            // Remove ad iframes and scripts completely
             const trash = document.querySelectorAll('iframe[src*="ads"], script[src*="ads"], .ad, .ads');
             trash.forEach(el => el.remove());
         });
@@ -110,12 +114,11 @@
         video.dataset.enhanced = "true";
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
-        
-        // Prevent auto-pause interference
+
         video.addEventListener('pause', (e) => {
             if (!video.ended && video.currentTime > 0 && !video.pausedByClick) {
                 e.stopImmediatePropagation();
-                video.play().catch(() => {});
+                video.play().catch(() => { });
             }
             video.pausedByClick = false;
         });
@@ -139,18 +142,12 @@
                     if (node.tagName === 'VIDEO') enhanceVideo(node);
                     else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
 
-                    // 2. Kill Ads on Sight (Radical Removal)
-                    if (node.tagName === 'IFRAME' && node.src.includes('ads')) {
-                        node.remove();
-                    }
-                    if (node.matches && node.matches(BLOCKED_SELECTORS)) {
-                        node.remove();
-                    }
-                    
-                    // 3. Re-apply Button Hijack if content reloads
-                    if (node.querySelector && node.querySelector('#btnWatch')) {
-                         forceWatchToDownload();
-                    }
+                    // 2. Kill Ads
+                    if (node.tagName === 'IFRAME' && node.src.includes('ads')) node.remove();
+                    if (node.matches && node.matches(BLOCKED_SELECTORS)) node.remove();
+
+                    // 3. Hijack Buttons
+                    if (node.querySelector && node.querySelector('#btnWatch')) forceWatchToDownload();
                 });
             });
         });
@@ -158,33 +155,65 @@
     }
 
     // ==========================================
-    // MODULE 5: FORCE WATCH -> DOWNLOAD (Dual Action)
+    // MODULE 5: FORCE WATCH -> DOWNLOAD 
     // ==========================================
     function forceWatchToDownload() {
         const watchBtn = document.getElementById('btnWatch') || document.querySelector('.single-watch-btn');
         const downBtn = document.getElementById('btnDown') || document.querySelector('.single-download-btn');
 
         if (watchBtn && downBtn) {
-            // Clone to remove old listeners
             const newWatchBtn = watchBtn.cloneNode(true);
             watchBtn.parentNode.replaceChild(newWatchBtn, watchBtn);
-            
-            newWatchBtn.removeAttribute('target'); 
-            
-            newWatchBtn.addEventListener('click', function(e) {
+
+            newWatchBtn.removeAttribute('target');
+
+            newWatchBtn.addEventListener('click', function (e) {
                 e.preventDefault();
                 e.stopPropagation();
 
                 const downloadUrl = downBtn.href;
                 const watchUrl = newWatchBtn.href;
 
-                // 1. Open Download (Trigger in new tab)
-                if (downloadUrl) window.open(downloadUrl, '_blank'); 
+                // 1. Open Download (New Tab)
+                if (downloadUrl) window.open(downloadUrl, '_blank');
 
-                // 2. Go to Watch (Navigate current tab)
+                // 2. Nav Watch (Current Tab)
                 if (watchUrl) setTimeout(() => { window.location.href = watchUrl; }, 100);
             }, true);
         }
+    }
+
+    // ==========================================
+    // MODULE 6: RESCUE MODE (Anti-White Screen)
+    // ==========================================
+    function startRescueInterval() {
+        // Runs every 1.5 second to fight back against white screens
+        setInterval(() => {
+            // 1. Force Body/HTML visibility
+            if (document.body.style.display === 'none' || document.body.style.visibility === 'hidden' || document.body.style.opacity === '0') {
+                document.body.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important; background-color: #111 !important;');
+                document.documentElement.setAttribute('style', 'display: block !important; visibility: visible !important; opacity: 1 !important;');
+            }
+
+            // 2. Look for "White Overlays" (Full screen ad covers)
+            const overlays = document.querySelectorAll('div, section, span');
+            overlays.forEach(el => {
+                const style = window.getComputedStyle(el);
+                if (style.position === 'fixed' && style.zIndex > 10000 && style.height === window.innerHeight + 'px') {
+                    // It's a full screen overlay - if it's not our player, burn it.
+                    if (!el.querySelector('video') && !el.className.includes('modal') && !el.className.includes('player')) {
+                        el.remove();
+                    }
+                }
+            });
+
+            // 3. Ensure we didn't accidentally hide the content wrapper
+            const wrappers = document.querySelectorAll('.singleـwrapper, .single_content, .postContent');
+            wrappers.forEach(el => {
+                if (el.style.display === 'none') el.style.display = 'block';
+            });
+
+        }, 1500);
     }
 
     // ==========================================
@@ -194,14 +223,15 @@
         try {
             injectSuperStyles();
             cleanJunk();
-            forceWatchToDownload(); 
+            forceWatchToDownload();
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
+            startRescueInterval(); // Start the white screen fighter
 
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log("Radical Fix Loaded");
+            console.log("Safe Optimization + Rescue Mode Loaded");
         } catch (e) {
             console.error("Error:", e);
         }
