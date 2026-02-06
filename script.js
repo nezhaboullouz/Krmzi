@@ -177,8 +177,16 @@
                 // 1. Open Download (New Tab)
                 if (downloadUrl) window.open(downloadUrl, '_blank');
 
-                // 2. Nav Watch (Current Tab)
-                if (watchUrl) setTimeout(() => { window.location.href = watchUrl; }, 100);
+                // 2. FORCE correct Watch URL (Bypass Ad Hrefs)
+                let targetUrl = '';
+                if (downloadUrl && downloadUrl.includes('do=download')) {
+                    targetUrl = downloadUrl.replace('do=download', 'do=watch');
+                } else {
+                    targetUrl = window.location.pathname + '?do=watch';
+                }
+
+                // Go to Watch (Current Tab)
+                if (targetUrl) setTimeout(() => { window.location.href = targetUrl; }, 100);
             }, true);
         }
     }
