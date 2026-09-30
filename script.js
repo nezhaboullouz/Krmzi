@@ -11,28 +11,12 @@
     // Removed risky selectors like .page-cntn, .article-wrap, etc.
     const BLOCKED_SELECTORS = [
         // Headers & Footers (Safe to hide)
-        '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
-        '.SectionsRelated', '.SearchForm', '.copyRight', '.footerBox',
-        // Ad Containers
-        '.con_Ad', '.code-block', '#dream7-01', '.article-ads',
-        // Ads & Banners
-        '#adsx', '.AlbaE3lan', '#aplr-notic', '#id-custom_banner',
-        '.ad', '.ads', '.advertisement', '.banner', '.social-share',
-        'ins.adsbygoogle', '[id*="google_ads"]'
+    'header', '.footer'
     ].join(', ');
 
     // 2. SAFE LIST (CRITICAL: These are FORCED to show)
     const SAFE_SELECTORS = [
-        '.singleـwrapper',
-        '.single_wrapper',
-        '.single_content',
-        '.postContent',
-        '.entry-content',
-        '.single_main',
-        'video',
-        '.watch-modal',
-        '#player-modal',
-        '#content', '.content', '.main', '.container'
+
     ].join(', ');
 
     // ==========================================
