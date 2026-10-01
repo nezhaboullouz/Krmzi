@@ -4,32 +4,11 @@
     window.__optimizationScriptActive = true;
 
     // ==========================================
-    // PRE-INIT: INTERCEPT createElement
-    // ==========================================
-    // Intercept BEFORE any iframe is created — add sandbox immediately
-    // This prevents top-level navigation redirects from inside iframes
-    (function interceptCreateElement() {
-        const _orig = document.createElement.bind(document);
-        document.createElement = function (tag) {
-            const el = _orig(tag);
-            if (tag.toLowerCase() === 'iframe') {
-                // Add sandbox before iframe is inserted into DOM
-                el.setAttribute('sandbox',
-                    'allow-scripts allow-same-origin allow-presentation allow-forms allow-pointer-lock'
-                    // NO allow-popups = blocks window.open()
-                    // NO allow-top-navigation = blocks page redirect from iframe!
-                );
-                el.dataset.sandboxed = 'true';
-            }
-            return el;
-        };
-    })();
-
-    // ==========================================
     // CONFIGURATION
     // ==========================================
 
     // 1. BLOCKED LIST (Junk to hide/remove)
+    // Removed risky selectors like .page-cntn, .article-wrap, etc.
     const BLOCKED_SELECTORS = [
         // Headers & Footers (Safe to hide)
         '.AYaHeader', '.under-header', 'header', '.footer', 'footer', '#headerNav',
@@ -124,9 +103,7 @@
             // 1. Remove ad iframes and scripts completely
             const trash = document.querySelectorAll(
                 'iframe[src*="ads"], script[src*="ads"], .ad, .ads, ' +
-                'script[src*="madurird"], script[src*="dtscout"], ' +
-                'script[src*="llvpn.com"], script[src*="adsterra"], ' +
-                'script[src*="monetag"], script[src*="propellerads"], ' +
+                'script[src*="madurird"], script[src*="dtscout"], ' + // NEW: Block ad networks
                 'iframe[src*="madurird"], iframe[src*="dtscout"]'
             );
             trash.forEach(el => el.remove());
@@ -136,7 +113,7 @@
             highZ.forEach(el => {
                 const style = window.getComputedStyle(el);
                 if (parseInt(style.zIndex) > 5000 && !el.className.includes('modal') && !el.className.includes('player')) {
-                    el.remove();
+                    el.remove(); // Nuke it
                 }
             });
         });
@@ -178,26 +155,18 @@
                     if (node.tagName === 'VIDEO') enhanceVideo(node);
                     else if (node.querySelectorAll) node.querySelectorAll('video').forEach(enhanceVideo);
 
-                    // 2. Kill Ads iframes
+                    // 2. Kill Ads
                     if (node.tagName === 'IFRAME' && node.src.includes('ads')) node.remove();
 
-                    // 3. Block specific ad networks on sight
+                    // NEW: Block specific ad networks on sight
                     if ((node.tagName === 'SCRIPT' || node.tagName === 'IFRAME') &&
-                        (node.src.includes('madurird') || node.src.includes('dtscout') ||
-                         node.src.includes('llvpn.com') || node.src.includes('adsterra') ||
-                         node.src.includes('monetag') || node.src.includes('propellerads'))) {
+                        (node.src.includes('madurird') || node.src.includes('dtscout'))) {
                         node.remove();
-                        return;
-                    }
-
-                    // 4. Sandbox new iframes to block popups
-                    if (node.tagName === 'IFRAME') {
-                        sandboxIframe(node);
                     }
 
                     if (node.matches && node.matches(BLOCKED_SELECTORS)) node.remove();
 
-                    // 5. Hijack Buttons
+                    // 3. Hijack Buttons
                     if (node.querySelector && node.querySelector('#btnWatch')) forceWatchToDownload();
                 });
             });
@@ -226,7 +195,7 @@
                 const watchUrl = newWatchBtn.href;
 
                 // 1. Open Download (New Tab)
-                if (downloadUrl) window.__safeOpen(downloadUrl, '_blank');
+                if (downloadUrl) window.open(downloadUrl, '_blank');
 
                 // 2. FORCE correct Watch URL (Bypass Ad Hrefs)
                 let targetUrl = '';
@@ -246,6 +215,7 @@
     // MODULE 6: RESCUE MODE (Anti-White Screen)
     // ==========================================
     function startRescueInterval() {
+        // Runs every 1.5 second to fight back against white screens
         setInterval(() => {
             // 1. Force Body/HTML visibility
             if (document.body.style.display === 'none' || document.body.style.visibility === 'hidden' || document.body.style.opacity === '0') {
@@ -258,6 +228,7 @@
             overlays.forEach(el => {
                 const style = window.getComputedStyle(el);
                 if (style.position === 'fixed' && style.zIndex > 10000 && style.height === window.innerHeight + 'px') {
+                    // It's a full screen overlay - if it's not our player, burn it.
                     if (!el.querySelector('video') && !el.className.includes('modal') && !el.className.includes('player')) {
                         el.remove();
                     }
@@ -274,77 +245,23 @@
     }
 
     // ==========================================
-    // MODULE 7: IFRAME SANDBOX (Anti-Popunder + Anti-Redirect)
-    // ==========================================
-    // For already-loaded iframes: clone + re-insert with sandbox (forces reload with sandbox)
-    // For new iframes: handled by createElement override above
-    function sandboxIframe(iframe) {
-        if (iframe.dataset.sandboxed) return;
-        iframe.dataset.sandboxed = 'true';
-        const current = iframe.getAttribute('sandbox') || '';
-        if (!current.includes('allow-popups')) {
-            const sandboxVal = 'allow-scripts allow-same-origin allow-presentation allow-forms allow-pointer-lock';
-            // If iframe already loaded, clone it so sandbox takes effect
-            if (iframe.src && iframe.contentDocument === null) {
-                // Cross-origin already loaded: set sandbox and force src refresh
-                iframe.setAttribute('sandbox', sandboxVal);
-                const src = iframe.src;
-                iframe.src = '';
-                requestAnimationFrame(() => { iframe.src = src; });
-            } else {
-                iframe.setAttribute('sandbox', sandboxVal);
-            }
-        }
-    }
-
-    function sandboxAllIframes() {
-        document.querySelectorAll('iframe').forEach(sandboxIframe);
-    }
-
-    // ==========================================
-    // MODULE 8: BLOCK window.open (Anti-Popup)
-    // ==========================================
-    // Save a safe reference for internal use (e.g. watch button)
-    window.__safeOpen = window.open.bind(window);
-
-    function blockPopups() {
-        // Override window.open to block all popup ads
-        // Only allow calls that come from trusted user interactions
-        window.open = function (url, target, features) {
-            // Allow internal navigation (same origin or empty)
-            if (!url || url === 'about:blank') return null;
-            try {
-                const origin = new URL(url).origin;
-                if (origin === window.location.origin) {
-                    return window.__safeOpen(url, target, features);
-                }
-            } catch (e) { }
-            // Block everything else (ads, popunders)
-            console.log('[Blocker] Blocked popup:', url);
-            return null;
-        };
-    }
-
-    // ==========================================
     // INIT
     // ==========================================
     function init() {
         try {
             injectSuperStyles();
             cleanJunk();
-            blockPopups();       // Block window.open ads
-            sandboxAllIframes(); // Sandbox existing iframes
             forceWatchToDownload();
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
-            startRescueInterval();
+            startRescueInterval(); // Start the white screen fighter
 
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log('[Blocker] Safe Optimization + Popup Blocker Loaded');
+            console.log("Safe Optimization + Rescue Mode Loaded");
         } catch (e) {
-            console.error('[Blocker] Error:', e);
+            console.error("Error:", e);
         }
     }
 
