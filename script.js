@@ -1,10 +1,87 @@
+/* ============================================================================
+ * Krmzi App — WebView All-in-One script
+ * ----------------------------------------------------------------------------
+ * PART A — Sayyarh ads-page skipper:
+ *   krmzi.org routes episode links through an ads interstitial:
+ *       https://sayyarh.com/latest1501?url=<base64(episode_url)>
+ *   The interstitial forces: click play -> watch video ad -> click continue.
+ *   This part decodes the base64 locally and jumps STRAIGHT to the episode.
+ *
+ * PART B — Page optimizer / ad-blocker (your existing script):
+ *   hides headers/footers/ads, removes ad iframes & scripts, enhances
+ *   <video> (playsinline, anti-auto-pause), hijacks watch buttons,
+ *   rescue mode against white screens.
+ *
+ * USAGE (iOS / WKWebView) — replaces the old script completely:
+ *   let script = WKUserScript(
+ *       source: try! String(contentsOfFile: Bundle.main.path(forResource: "krmzi_app_webview_full", ofType: "js")!),
+ *       injectionTime: .atDocumentStart,
+ *       forMainFrameOnly: false)
+ *   webView.configuration.userContentController.addUserScript(script)
+ *
+ * Optional Swift complement (WKNavigationDelegate): if a navigation targets
+ * sayyarh.com, cancel it and load window.__krmziDirect(url) instead.
+ * ========================================================================== */
 (function () {
-    // 1. SAFETY LOCK
-    if (window.__optimizationScriptActive) return;
+    // 1. SAFETY LOCK (covers both the old script name and this one)
+    if (window.__optimizationScriptActive || window.__krmziAllInOneActive) return;
     window.__optimizationScriptActive = true;
+    window.__krmziAllInOneActive = true;
 
     // ==========================================
-    // CONFIGURATION
+    // PART A: SAYYARH SKIP (runs immediately, no DOM needed)
+    // ==========================================
+    var AD_HOST = /(^|\.)sayyarh\.com$/i;
+
+    /* Decode "https://sayyarh.com/latest1501?url=<base64>" -> direct URL. */
+    function krmziDirectTarget(adUrl) {
+        try {
+            var u = new URL(adUrl, window.location.href);
+            var b64 = u.searchParams.get('url');
+            if (!b64) return null;
+            var std = b64.replace(/-/g, '+').replace(/_/g, '/');
+            while (std.length % 4) std += '=';
+            var bin = atob(std);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            var decoded = new TextDecoder('utf-8').decode(bytes);
+            try { decoded = decodeURIComponent(decoded); } catch (e) { /* already plain */ }
+            return decoded;
+        } catch (e) {
+            return null;
+        }
+    }
+    // Exposed for Swift: window.__krmziDirect('https://sayyarh.com/...') -> direct URL
+    window.__krmziDirect = krmziDirectTarget;
+
+    // If we landed ON the ads page -> jump straight to the episode, skip the video ad.
+    if (AD_HOST.test(window.location.hostname)) {
+        var adTarget = krmziDirectTarget(window.location.href);
+        if (adTarget) {
+            window.location.replace(adTarget);
+            return; // nothing else to do on the ads page
+        }
+    }
+
+    /* Rewrite sayyarh ad-links inside krmzi.org pages to direct episode URLs. */
+    function fixKrmziLinks(root) {
+        try {
+            var scope = root && root.querySelectorAll ? root : document;
+            var links = scope.querySelectorAll('a[href*="sayyarh.com"]');
+            for (var i = 0; i < links.length; i++) {
+                var a = links[i];
+                if (a.dataset.krmziFixed) continue;
+                var d = krmziDirectTarget(a.getAttribute('href'));
+                if (d) {
+                    a.setAttribute('href', d);
+                    a.dataset.krmziFixed = '1';
+                }
+            }
+        } catch (e) { /* DOM not ready */ }
+    }
+
+    // ==========================================
+    // PART B: CONFIGURATION (ad-blocker)
     // ==========================================
 
     // 1. BLOCKED LIST (Junk to hide/remove)
@@ -55,7 +132,7 @@
                 position: absolute !important;
                 z-index: -9999 !important;
             }
-            
+
             /* 2. FORCE SHOW CONTENT (Fixes White Screen) */
             ${SAFE_SELECTORS} {
                 display: block !important;
@@ -69,24 +146,24 @@
 
             /* 3. PLAYER & IFRAME FIXES */
             .modal, .popup, .overlay, .lightbox, #player-modal, iframe {
-                display: block !important; 
+                display: block !important;
                 visibility: visible !important;
-                z-index: 99999 !important; 
+                z-index: 99999 !important;
                 opacity: 1 !important;
             }
 
             /* 4. BUTTON MANAGER */
-            #btnDown, .single-download-btn { display: none !important; } 
-            #btnWatch, .single-watch-btn { 
-                display: flex !important; 
-                visibility: visible !important; 
+            #btnDown, .single-download-btn { display: none !important; }
+            #btnWatch, .single-watch-btn {
+                display: flex !important;
+                visibility: visible !important;
                 opacity: 1 !important;
             }
 
             /* 5. BODY OPTIMIZATION - FORCE VISIBILITY */
             body, html {
                 overflow-x: hidden !important;
-                background-color: #111 !important; 
+                background-color: #111 !important;
                 display: block !important;
                 visibility: visible !important;
                 opacity: 1 !important;
@@ -166,6 +243,10 @@
 
                     if (node.matches && node.matches(BLOCKED_SELECTORS)) node.remove();
 
+                    // 2b. Rewrite sayyarh ad-links added dynamically (Part A)
+                    if (node.querySelectorAll) fixKrmziLinks(node);
+                    if (node.tagName === 'A' && node.href && node.href.includes('sayyarh.com')) fixKrmziLinks(node.parentNode || document);
+
                     // 3. Hijack Buttons
                     if (node.querySelector && node.querySelector('#btnWatch')) forceWatchToDownload();
                 });
@@ -175,7 +256,7 @@
     }
 
     // ==========================================
-    // MODULE 5: FORCE WATCH -> DOWNLOAD 
+    // MODULE 5: FORCE WATCH -> DOWNLOAD
     // ==========================================
     function forceWatchToDownload() {
         const watchBtn = document.getElementById('btnWatch') || document.querySelector('.single-watch-btn');
@@ -252,6 +333,7 @@
             injectSuperStyles();
             cleanJunk();
             forceWatchToDownload();
+            fixKrmziLinks(document); // Part A: rewrite sayyarh links on load
             document.querySelectorAll('video').forEach(enhanceVideo);
             startMonitoring();
             startRescueInterval(); // Start the white screen fighter
@@ -259,7 +341,7 @@
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.jsLoaded) {
                 window.webkit.messageHandlers.jsLoaded.postMessage('loaded');
             }
-            console.log("Safe Optimization + Rescue Mode Loaded");
+            console.log("Krmzi All-in-One (Sayyarh skip + Safe Optimization + Rescue Mode) Loaded");
         } catch (e) {
             console.error("Error:", e);
         }
